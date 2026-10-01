@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="en-GB">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; connect-src 'self' https://api.open-meteo.com https://geocoding-api.open-meteo.com; img-src 'self' blob: data:; style-src 'self'; script-src 'self'; worker-src 'self'; font-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'none'" />
+    <title>aWardrobe</title>
+    <meta name="description" content="Your clothes, photographed and cut out, so you can plan outfits and see what you actually wear. Everything stays on your device." />
+    <meta name="theme-color" content="#F4F4F1" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#121827" media="(prefers-color-scheme: dark)" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="aWardrobe" />
+    <link rel="manifest" href="manifest.webmanifest" />
+    <link rel="icon" href="icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <link rel="stylesheet" href="fonts/fonts.css" />
+    <link rel="stylesheet" href="ui/tokens.css" />
+    <link rel="stylesheet" href="ui/base.css" />
+    <link rel="stylesheet" href="ui/components.css" />
+    <link rel="stylesheet" href="ui/screens.css" />
+  </head>
+  <body>
+    <div id="app"></div>
+    <noscript><p class="noscript">aWardrobe needs JavaScript turned on.</p></noscript>
+    <script type="module" src="main.js"></script>
+  </body>
+</html>

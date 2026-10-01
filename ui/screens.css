@@ -1,0 +1,51 @@
+/* aWardrobe screens: welcome and the pieces that belong to one screen. */
+.welcome {
+  min-height: calc(100vh - 48px);
+  min-height: calc(100dvh - 48px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 18px;
+  padding: 24px 0;
+}
+.welcome-title {
+  font-variation-settings: 'opsz' 96;
+  font-weight: 700;
+  font-size: 40px;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.welcome-lead {
+  max-width: 34ch;
+  font-size: 17px;
+  color: var(--graphite);
+  text-wrap: balance;
+}
+.welcome-points {
+  display: grid;
+  gap: 10px;
+  text-align: left;
+  max-width: 340px;
+}
+.welcome-points li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  background: var(--raise);
+  border: 1px solid var(--rule);
+}
+.welcome-points .icon {
+  color: var(--ink);
+}
+.welcome .fineprint {
+  max-width: 40ch;
+}
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px 10px;
+}

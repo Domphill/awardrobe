@@ -4,14 +4,20 @@ export const DEFAULT_PREFS = { theme: 'system', currency: '£', tempUnit: 'C', p
 
 export function createPrefs(records) {
   const listeners = new Set();
+  let chain = Promise.resolve();
   const api = {
     get: () => Object.assign({}, DEFAULT_PREFS, records.meta('prefs', {})),
-    async set(patch) {
-      const next = Object.assign({}, records.meta('prefs', {}), patch);
-      await records.setMeta('prefs', next);
-      const now = api.get();
-      for (const fn of listeners) fn(now);
-      return now;
+    /* Changes are written one after another, so two quick taps cannot lose each other. */
+    set(patch) {
+      const run = chain.then(async () => {
+        const next = Object.assign({}, records.meta('prefs', {}), patch);
+        await records.setMeta('prefs', next);
+        const now = api.get();
+        for (const fn of listeners) fn(now);
+        return now;
+      });
+      chain = run.catch(() => {});
+      return run;
     },
     on(fn) {
       listeners.add(fn);

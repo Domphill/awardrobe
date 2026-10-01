@@ -135,6 +135,45 @@ class Db {
   }
 }
 
+/* A stand-in with the same shape when the browser cannot store anything (a private window):
+   everything lives in memory for the session (FR-113). */
+export function memoryDb() {
+  const data = {};
+  for (const s of STORE_NAMES) data[s] = new Map();
+  const keyOf = (s, rec) => rec[STORES[s]];
+  const ops = {
+    put: (s, rec) => {
+      const k = keyOf(s, rec);
+      if (k === undefined || k === null) throw new StorageError('Saving failed: the record has no key.', 'write');
+      data[s].set(k, structuredClone(rec));
+    },
+    delete: (s, key) => data[s].delete(key),
+    clear: (s) => data[s].clear(),
+    get: async (s, key) => structuredClone(data[s].get(key))
+  };
+  return {
+    name: 'memory',
+    memory: true,
+    close() {},
+    getAll: async (s) => [...data[s].values()].map((x) => structuredClone(x)),
+    getAllKeys: async (s) => [...data[s].keys()],
+    get: async (s, key) => (data[s].has(key) ? structuredClone(data[s].get(key)) : undefined),
+    put: async (s, rec) => ops.put(s, rec),
+    delete: async (s, key) => ops.delete(s, key),
+    clear: async (stores) => stores.forEach((s) => ops.clear(s)),
+    async tx(stores, fn) {
+      const snapshot = {};
+      for (const s of stores) snapshot[s] = new Map(data[s]);
+      try {
+        await fn(ops);
+      } catch (e) {
+        for (const s of stores) data[s] = snapshot[s];
+        throw wrap(e);
+      }
+    }
+  };
+}
+
 export function deleteDb(name) {
   return new Promise((resolve) => {
     let r;

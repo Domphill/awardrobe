@@ -1,0 +1,56 @@
+/* aWardrobe design tokens: pattern paper. Paper and ink with one tape-measure yellow accent.
+   Light values on :root; dark under the media query and under an explicit data-theme. */
+:root {
+  --paper: #f4f4f1;
+  --raise: #ffffff;
+  --soft: #e9eae4;
+  --ink: #16213a;
+  --graphite: #4f5566;
+  --rule: #d8dad3;
+  --tape: #f3c94a;
+  --tape-ink: #16213a;
+  --chalk: #5b7fbf;
+  --dot: #c9cbc4;
+  --danger: #b4262c;
+  --shadow: rgba(22, 33, 58, 0.18);
+  --focus: #f3c94a;
+  --font: 'Bricolage Grotesque', 'Helvetica Neue', Arial, sans-serif;
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-pill: 999px;
+  --gap: 14px;
+  --gutter: 20px;
+  --tap: 44px;
+  --topbar: 52px;
+  --tabbar: 64px;
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --paper: #121827;
+    --raise: #1b2235;
+    --soft: #1f2740;
+    --ink: #f4f4f1;
+    --graphite: #9aa3b5;
+    --rule: #2c3448;
+    --chalk: #8fb0f0;
+    --dot: #2e3650;
+    --danger: #ff7b7b;
+    --shadow: rgba(0, 0, 0, 0.55);
+    color-scheme: dark;
+  }
+}
+:root[data-theme='dark'] {
+  --paper: #121827;
+  --raise: #1b2235;
+  --soft: #1f2740;
+  --ink: #f4f4f1;
+  --graphite: #9aa3b5;
+  --rule: #2c3448;
+  --chalk: #8fb0f0;
+  --dot: #2e3650;
+  --danger: #ff7b7b;
+  --shadow: rgba(0, 0, 0, 0.55);
+  color-scheme: dark;
+}
