@@ -1,0 +1,485 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>aWardrobe Mockups</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,200..800&family=Instrument+Serif:ital@0;1&family=Syne:wght@500;700&display=swap">
+<style>
+/* Layout: a short introduction, a direction board of three tiles, then phone screens in a wrapping grid.
+   Pattern paper: paper and ink with one tape-measure yellow accent, one type family throughout. */
+:root{
+  --bg:#F4F4F1; --fg:#16213A; --mute:#4F5566; --line:#D8DAD3; --raise:#FFFFFF;
+  --tape:#F3C94A; --chalk:#5B7FBF; --dot:#C9CBC4; --shadow:rgba(22,33,58,.18);
+  --font:"Bricolage Grotesque","Helvetica Neue",Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#121827; --fg:#F4F4F1; --mute:#9AA3B5; --line:#2C3448; --raise:#1B2235;
+    --tape:#F3C94A; --chalk:#8FB0F0; --dot:#2E3650; --shadow:rgba(0,0,0,.55); color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#121827; --fg:#F4F4F1; --mute:#9AA3B5; --line:#2C3448; --raise:#1B2235;
+  --tape:#F3C94A; --chalk:#8FB0F0; --dot:#2E3650; --shadow:rgba(0,0,0,.55); color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+[hidden]{display:none!important}
+body{background:var(--bg);color:var(--fg);font-family:var(--font);font-size:16px;line-height:1.5;padding-block:0 48px;padding-inline:16px;font-optical-sizing:auto}
+a{color:inherit}
+.wrap{max-width:1180px;margin:0 auto}
+.intro{display:flex;flex-wrap:wrap;gap:16px 32px;align-items:flex-end;justify-content:space-between;padding-block:36px 20px;border-bottom:1px solid var(--line)}
+.intro h1{font-size:clamp(34px,5vw,56px);font-variation-settings:"opsz" 96;font-weight:700;letter-spacing:-.02em;line-height:1;margin:0 0 10px}
+.intro p{max-width:62ch;margin:0;color:var(--mute)}
+.intro .ctl{display:flex;gap:8px;flex-wrap:wrap}
+.btn{font:inherit;font-weight:600;font-size:14px;border:1px solid var(--line);background:var(--raise);color:var(--fg);border-radius:999px;padding:8px 14px;cursor:pointer;min-height:40px}
+.btn[aria-pressed="true"]{background:var(--tape);color:#16213A;border-color:var(--tape)}
+.btn:focus-visible{outline:3px solid var(--tape);outline-offset:2px}
+h2{font-size:26px;font-variation-settings:"opsz" 72;font-weight:600;letter-spacing:-.01em;margin:40px 0 6px}
+.lead{color:var(--mute);margin:0 0 18px;max-width:70ch}
+
+/* direction board */
+.board{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}
+.tile{border:1px solid var(--line);border-radius:18px;padding:18px;background:var(--raise);display:grid;gap:12px;min-width:0}
+.tile h3{margin:0;font-size:20px;font-weight:600;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.tile .rec{font-size:12px;font-weight:600;background:var(--tape);color:#16213A;border-radius:999px;padding:3px 9px}
+.tile p{margin:0;color:var(--mute);font-size:14px}
+.sw{display:flex;gap:8px;flex-wrap:wrap}
+.sw span{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--mute)}
+.sw i{width:22px;height:22px;border-radius:50%;border:1px solid rgba(0,0,0,.12);display:inline-block}
+.mini{height:150px;border-radius:12px;display:grid;grid-template-columns:1fr 1fr;align-items:center;padding:14px;gap:10px;overflow:hidden}
+.mini .t1{font-size:30px;line-height:1;font-weight:700}
+.mini .t2{font-size:13px;opacity:.75;margin-top:6px}
+.mini .g{width:84px;height:100px;justify-self:center;filter:drop-shadow(0 10px 12px rgba(0,0,0,.22))}
+.mini.a{background:#F4F4F1;color:#16213A;background-image:radial-gradient(#C9CBC4 1px,transparent 1.2px);background-size:14px 14px;font-family:var(--font)}
+.mini.a .t1{font-variation-settings:"opsz" 96}
+.mini.b{background:#FFFFFF;color:#1A1A1A;font-family:"Instrument Serif",Georgia,serif}
+.mini.b .t1{font-weight:400;font-size:38px;font-style:italic}
+.mini.b .t2{font-family:var(--font)}
+.mini.c{background:#0F1115;color:#E6E6E6;font-family:"Syne",var(--font)}
+.mini.c .t1{color:#8B7CFF}
+
+/* phones */
+.screens{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:28px 22px;align-items:start}
+.cap{margin:10px 2px 0;font-size:14px;color:var(--mute);max-width:40ch}
+.cap b{color:var(--fg);font-weight:600}
+.ph-wrap{height:calc(844px * var(--k,1));width:calc(390px * var(--k,1));margin:0 auto}
+.ph{--p-bg:#F4F4F1;--p-fg:#16213A;--p-mute:#4F5566;--p-line:#D8DAD3;--p-raise:#FFFFFF;--p-dot:#C9CBC4;--p-shadow:rgba(22,33,58,.2);--p-tape:#F3C94A;--p-chalk:#5B7FBF;--p-soft:#E9EAE4;
+  width:390px;height:844px;transform:scale(var(--k,1));transform-origin:top left;background:var(--p-bg);color:var(--p-fg);
+  border-radius:44px;border:8px solid #16213A;box-shadow:0 20px 40px var(--shadow);overflow:hidden;position:relative;display:flex;flex-direction:column;font-size:15px;line-height:1.35}
+.ph.dark{--p-bg:#121827;--p-fg:#F4F4F1;--p-mute:#9AA3B5;--p-line:#2C3448;--p-raise:#1B2235;--p-dot:#2E3650;--p-shadow:rgba(0,0,0,.6);--p-chalk:#8FB0F0;--p-soft:#1F2740;color-scheme:dark}
+.bare .ph{border:0;border-radius:0;box-shadow:none;transform:none}
+.status{height:46px;display:flex;align-items:center;justify-content:space-between;padding:12px 26px 0;font-size:14px;font-weight:600}
+.status .sig{display:flex;gap:6px;align-items:center}
+.status .sig i{display:block;width:16px;height:9px;border:1.5px solid currentColor;border-radius:3px;position:relative}
+.status .sig i::after{content:"";position:absolute;inset:1.5px 3px 1.5px 1.5px;background:currentColor;border-radius:1px}
+.screen{flex:1;overflow:hidden;padding:4px 20px 0;display:flex;flex-direction:column;gap:14px}
+.tabs{height:84px;border-top:1px solid var(--p-line);display:flex;justify-content:space-around;align-items:flex-start;padding:10px 10px 0;background:var(--p-bg)}
+.tab{display:flex;flex-direction:column;align-items:center;gap:3px;font-size:11px;font-weight:600;color:var(--p-mute);width:60px}
+.tab svg{width:24px;height:24px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.tab[aria-current]{color:var(--p-fg)}
+.tab.add{color:var(--p-fg)}
+.tab.add .plus{width:48px;height:48px;border-radius:50%;background:var(--p-tape);color:#16213A;display:grid;place-items:center;margin-top:-18px;box-shadow:0 6px 14px rgba(243,201,74,.45)}
+.tab.add .plus svg{width:26px;height:26px;stroke-width:2.25}
+.top{display:flex;align-items:center;justify-content:space-between;min-height:36px;gap:8px}
+.top .back{display:inline-flex;align-items:center;gap:4px;font-weight:600;font-size:15px;color:var(--p-fg)}
+.top .back svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.top .ico{display:flex;gap:6px}
+.ib{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--p-line);background:var(--p-raise)}
+.ib svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.ib.on{background:var(--p-tape);border-color:var(--p-tape);color:#16213A}
+.title{font-variation-settings:"opsz" 96;font-weight:700;font-size:34px;letter-spacing:-.02em;line-height:1.02;margin:0}
+.title.sm{font-size:28px}
+.sub{color:var(--p-mute);margin:3px 0 0;font-size:15px}
+.hd{display:flex;align-items:flex-end;justify-content:space-between;gap:10px}
+.g{display:block;overflow:visible}
+.stage{border-radius:18px;background:var(--p-soft);background-image:radial-gradient(var(--p-dot) 1px,transparent 1.2px);background-size:14px 14px;position:relative;overflow:hidden}
+.ph.dark .stage{background-color:#161E33}
+.stage .g{filter:drop-shadow(0 14px 16px var(--p-shadow))}
+.today{display:grid;gap:10px;padding:12px 14px;border-radius:18px;background:var(--p-raise);border:1px solid var(--p-line)}
+.today .wx{display:flex;align-items:center;gap:10px}
+.today .wx svg{width:34px;height:34px;stroke:var(--p-fg);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.today .wx b{display:block;font-size:17px;font-weight:600;line-height:1.15}
+.today .wx span{display:block;color:var(--p-mute);font-size:13.5px}
+.idea{display:flex;gap:6px;align-items:flex-end;height:92px;padding:6px 8px;border-radius:12px}
+.idea .g{height:74px;width:62px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.pb{font:inherit;font-weight:600;font-size:14px;border-radius:999px;padding:10px 16px;border:1px solid var(--p-line);background:var(--p-raise);color:var(--p-fg);min-height:44px;display:inline-flex;align-items:center;gap:6px}
+.pb.pri{background:var(--p-tape);color:#16213A;border-color:var(--p-tape)}
+.pb.blk{width:100%;justify-content:center;font-size:16px}
+.pb.sm{min-height:36px;padding:6px 12px;font-size:13px}
+.pb svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.search{display:flex;align-items:center;gap:8px;height:44px;border-radius:12px;border:1px solid var(--p-line);background:var(--p-raise);padding:0 12px;color:var(--p-mute)}
+.search svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round}
+.chips{display:flex;gap:8px;overflow:hidden;white-space:nowrap}
+.chip{font-size:13.5px;font-weight:600;border-radius:999px;padding:7px 12px;border:1px solid var(--p-line);background:var(--p-raise);color:var(--p-fg);display:inline-flex;gap:6px;align-items:center}
+.chip small{font-weight:500;color:var(--p-mute)}
+.chip.on{background:var(--p-fg);color:var(--p-bg);border-color:var(--p-fg)}
+.chip.on small{color:inherit;opacity:.8}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px 10px}
+.card{display:grid;gap:6px;justify-items:center}
+.card .g{width:84px;height:100px;filter:drop-shadow(0 10px 10px var(--p-shadow))}
+.card span{font-size:12.5px;font-weight:500;text-align:center;line-height:1.2}
+.card .fav{position:relative}
+.card .fav::after{content:"";position:absolute;right:-6px;top:-4px;width:12px;height:12px;background:var(--p-tape);border-radius:50%;box-shadow:0 0 0 2px var(--p-bg)}
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.swatch{display:inline-flex;align-items:center;gap:7px;font-size:13.5px;font-weight:500;padding:5px 11px 5px 6px;border-radius:999px;border:1px solid var(--p-line);background:var(--p-raise)}
+.swatch i{width:20px;height:20px;border-radius:6px;display:inline-block;border:1px solid rgba(0,0,0,.12)}
+.tags{display:flex;gap:6px;flex-wrap:wrap}
+.tag{font-size:12.5px;color:var(--p-mute);border:1px solid var(--p-line);border-radius:6px;padding:3px 8px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat b{display:block;font-variation-settings:"opsz" 72;font-weight:700;font-size:26px;letter-spacing:-.02em;line-height:1;font-variant-numeric:tabular-nums}
+.stat span{display:block;color:var(--p-mute);font-size:12.5px;margin-top:4px}
+.strip{display:flex;gap:10px}
+.omini{width:72px;height:92px;border-radius:12px;background:var(--p-soft);background-image:radial-gradient(var(--p-dot) 1px,transparent 1.2px);background-size:10px 10px;position:relative;overflow:hidden}
+.omini .g{position:absolute;filter:drop-shadow(0 4px 5px var(--p-shadow))}
+.muted{color:var(--p-mute);font-size:13.5px;margin:0}
+.pill{font:inherit;font-weight:600;font-size:13px;border-radius:999px;padding:6px 11px;border:1px solid var(--p-line);background:var(--p-raise);color:var(--p-fg);display:inline-flex;align-items:center;gap:5px;min-height:36px;white-space:nowrap}
+.pill svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.pill[disabled]{opacity:.4}
+.tapectl{display:grid;gap:6px}
+.tapectl .lbl{display:flex;justify-content:space-between;font-size:13px;color:var(--p-mute)}
+.tapectl .lbl b{color:var(--p-fg);font-weight:600}
+.tape{height:34px;border-radius:6px;background:var(--p-tape);position:relative;overflow:hidden;
+  background-image:repeating-linear-gradient(90deg,#16213A 0 1.5px,transparent 1.5px 9px),repeating-linear-gradient(90deg,#16213A 0 1.5px,transparent 1.5px 45px);
+  background-size:100% 9px,100% 17px;background-position:0 100%,0 100%;background-repeat:repeat-x}
+.tape .num{position:absolute;top:3px;font-size:9.5px;font-weight:700;color:#16213A;font-variant-numeric:tabular-nums}
+.tape .thumb{position:absolute;top:-2px;bottom:-2px;width:14px;border-radius:4px;background:#16213A;box-shadow:0 0 0 2px var(--p-bg)}
+.tape .thumb::after{content:"";position:absolute;left:50%;top:6px;bottom:6px;width:2px;margin-left:-1px;background:var(--p-tape)}
+.tools{display:flex;gap:2px;overflow:hidden;margin:0 -20px;padding:0 20px}
+.tool{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:54px;padding:8px 2px;border-radius:12px;font-size:11px;font-weight:600;color:var(--p-mute)}
+.tool svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.75;stroke-linecap:round;stroke-linejoin:round}
+.tool.on{background:var(--p-tape);color:#16213A}
+.brushes{display:flex;gap:10px;align-items:center}
+.brushes i{display:inline-grid;place-items:center;border-radius:50%;border:1.5px solid var(--p-line);background:var(--p-raise)}
+.brushes i::after{content:"";border-radius:50%;background:var(--p-fg)}
+.brushes i.s{width:30px;height:30px}.brushes i.s::after{width:8px;height:8px}
+.brushes i.m{width:34px;height:34px}.brushes i.m::after{width:14px;height:14px}
+.brushes i.l{width:38px;height:38px}.brushes i.l::after{width:22px;height:22px}
+.brushes i.on{border-color:var(--p-fg);box-shadow:0 0 0 3px var(--p-tape)}
+.ring{position:absolute;border:2px solid var(--p-chalk);border-radius:50%;box-shadow:0 0 0 1px rgba(255,255,255,.8),inset 0 0 0 1px rgba(255,255,255,.8)}
+.zoom{position:absolute;right:10px;top:10px;font-size:12px;font-weight:600;background:var(--p-raise);border:1px solid var(--p-line);border-radius:999px;padding:4px 9px}
+.piece{position:absolute}
+.piece .g{width:100%;height:100%}
+.piece.sel{outline:2px solid var(--p-chalk);outline-offset:4px;border-radius:4px}
+.piece .hdl{position:absolute;right:-9px;bottom:-9px;width:18px;height:18px;border-radius:50%;background:var(--p-raise);border:2px solid var(--p-chalk)}
+.piece .ang{position:absolute;left:-4px;top:-26px;font-size:11px;font-weight:700;background:var(--p-chalk);color:#fff;border-radius:6px;padding:2px 6px;font-variant-numeric:tabular-nums}
+.toolrow{display:flex;gap:6px;align-items:center;flex-wrap:nowrap;overflow:hidden}
+.deg{display:inline-flex;align-items:center;gap:4px;border:1px solid var(--p-line);border-radius:10px;padding:0 10px;height:36px;font-weight:600;font-variant-numeric:tabular-nums;background:var(--p-raise);white-space:nowrap}
+.mixer{display:grid;gap:8px}
+.slot{display:grid;grid-template-columns:28px 1fr 28px;align-items:center;gap:4px;border:1px solid var(--p-line);border-radius:14px;background:var(--p-raise);padding:6px 6px}
+.slot .arr{width:28px;height:44px;display:grid;place-items:center;color:var(--p-mute)}
+.slot .arr svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round}
+.slot .wheel{display:flex;align-items:flex-end;justify-content:space-evenly;gap:6px;height:66px}
+.slot .wheel .g{width:54px;height:62px;flex:none;filter:drop-shadow(0 4px 5px var(--p-shadow))}
+.slot .wheel .side{opacity:.4;width:40px;height:46px}
+.slot .wheel .none{display:grid;place-items:center;font-size:12px;color:var(--p-mute);height:46px;width:40px}
+.slot .cat{grid-column:1/-1;display:flex;justify-content:space-between;font-size:12.5px;color:var(--p-mute);padding:0 6px}
+.slot .cat b{color:var(--p-fg);font-weight:600}
+.days{display:grid;gap:8px}
+.day{display:grid;grid-template-columns:54px 46px 1fr auto;align-items:center;gap:8px;padding:8px 10px;border-radius:14px;background:var(--p-raise);border:1px solid var(--p-line)}
+.day.plan{border-color:var(--p-tape);box-shadow:inset 4px 0 0 var(--p-tape)}
+.day .dn b{display:block;font-weight:700;font-size:15px;line-height:1.1}
+.day .dn span{font-size:12px;color:var(--p-mute)}
+.day .wx{display:grid;justify-items:center;font-size:11.5px;color:var(--p-mute);font-variant-numeric:tabular-nums}
+.day .wx svg{width:22px;height:22px;stroke:var(--p-fg);fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.day .wx b{color:var(--p-fg);font-weight:700}
+.day .pcs{display:flex;gap:2px;align-items:flex-end;height:44px}
+.day .pcs .g{height:40px;width:32px;filter:drop-shadow(0 3px 4px var(--p-shadow))}
+.day .act{display:grid;gap:4px}
+.day .act .pill{min-height:30px;padding:3px 9px;font-size:12px}
+.day .act .ok{color:var(--p-fg);font-size:12.5px;font-weight:600;display:inline-flex;align-items:center;gap:4px}
+.day .act .ok svg{width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2.5;stroke-linecap:round;stroke-linejoin:round}
+.big4{display:grid;grid-template-columns:1fr 1fr;gap:12px 10px}
+.list{display:grid;gap:8px}
+.li{display:grid;grid-template-columns:40px 1fr auto;align-items:center;gap:10px}
+.li .g{width:36px;height:42px;filter:drop-shadow(0 3px 4px var(--p-shadow))}
+.li .nm{font-weight:500;font-size:14px}
+.li .bar{height:8px;border-radius:4px;background:var(--p-soft);margin-top:4px;overflow:hidden}
+.li .bar i{display:block;height:100%;background:var(--p-tape)}
+.li .v{font-variant-numeric:tabular-nums;font-weight:600;font-size:14px;color:var(--p-mute)}
+.sh{font-size:17px;font-weight:600;margin:4px 0 0}
+.notes{margin-top:40px;border-top:1px solid var(--line);padding-top:18px;color:var(--mute);max-width:70ch}
+.notes ul{padding-left:18px;margin:8px 0 0}
+@media (prefers-reduced-motion:no-preference){.btn,.pb{transition:background-color .15s}}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="g-tee" viewBox="0 0 100 120"><path fill="currentColor" d="M20 22 L37 12 Q50 22 63 12 L80 22 L93 42 L77 50 L74 44 L74 108 L26 108 L26 44 L23 50 L7 42 Z"/><path fill="#000" opacity=".1" d="M26 44 L26 108 L50 108 L50 20 Q43 18 37 12 L20 22 L7 42 L23 50 Z"/></symbol>
+  <symbol id="g-jumper" viewBox="0 0 100 120"><path fill="currentColor" d="M22 20 L40 10 Q50 18 60 10 L78 20 L97 52 L82 60 L78 52 L78 112 L22 112 L22 52 L18 60 L3 52 Z"/><path fill="#000" opacity=".1" d="M22 52 L22 112 L50 112 L50 16 Q45 14 40 10 L22 20 L3 52 L18 60 Z"/><path fill="#000" opacity=".12" d="M22 100 H78 V112 H22 Z"/></symbol>
+  <symbol id="g-shirt" viewBox="0 0 100 120"><path fill="currentColor" d="M22 22 L40 12 L50 26 L60 12 L78 22 L95 62 L80 68 L78 54 L78 114 L22 114 L22 54 L20 68 L5 62 Z"/><path fill="#000" opacity=".1" d="M22 54 L22 114 L50 114 L50 26 L40 12 L22 22 L5 62 L20 68 Z"/><path fill="#000" opacity=".22" d="M40 12 L50 26 L60 12 L55 9 L50 17 L45 9 Z"/><path stroke="#000" stroke-opacity=".18" stroke-width="1.5" d="M50 26 V114"/></symbol>
+  <symbol id="g-jacket" viewBox="0 0 100 120"><path fill="currentColor" d="M16 22 L40 10 L50 32 L60 10 L84 22 L99 72 L84 78 L82 58 L82 114 L18 114 L18 58 L16 78 L1 72 Z"/><path fill="#000" opacity=".1" d="M18 58 L18 114 L50 114 L50 32 L40 10 L16 22 L1 72 L16 78 Z"/><path fill="#000" opacity=".2" d="M50 32 L44 114 L56 114 Z"/></symbol>
+  <symbol id="g-coat" viewBox="0 0 100 120"><path fill="currentColor" d="M14 24 L40 10 L50 30 L60 10 L86 24 L99 80 L85 86 L84 64 L84 118 L16 118 L16 64 L15 86 L1 80 Z"/><path fill="#000" opacity=".1" d="M16 64 L16 118 L50 118 L50 30 L40 10 L14 24 L1 80 L15 86 Z"/><path fill="#000" opacity=".2" d="M50 30 L46 118 L54 118 Z"/></symbol>
+  <symbol id="g-jeans" viewBox="0 0 100 120"><path fill="currentColor" d="M25 6 L75 6 L79 114 L56 114 L50 48 L44 114 L21 114 Z"/><path fill="#000" opacity=".1" d="M25 6 L50 6 L50 48 L44 114 L21 114 Z"/><path stroke="#000" stroke-opacity=".22" stroke-width="4" d="M25 8 H75"/></symbol>
+  <symbol id="g-skirt" viewBox="0 0 100 120"><path fill="currentColor" d="M30 8 H70 L86 112 H14 Z"/><path fill="#000" opacity=".1" d="M30 8 H50 V112 H14 Z"/><path stroke="#000" stroke-opacity=".22" stroke-width="4" d="M30 10 H70"/></symbol>
+  <symbol id="g-dress" viewBox="0 0 100 120"><path fill="currentColor" d="M32 6 L44 2 Q50 10 56 2 L68 6 L74 40 L64 46 L86 118 L14 118 L36 46 L26 40 Z"/><path fill="#000" opacity=".1" d="M32 6 L50 6 L50 118 L14 118 L36 46 L26 40 Z"/></symbol>
+  <symbol id="g-trainer" viewBox="0 0 100 120"><path fill="currentColor" d="M4 84 Q8 62 30 58 L50 42 Q58 36 66 46 L82 60 Q97 66 97 82 L97 92 L4 92 Z"/><path fill="#000" opacity=".28" d="M4 86 H97 V92 H4 Z"/><path stroke="#fff" stroke-opacity=".65" stroke-width="2" d="M34 60 L50 48 M40 66 L56 54 M46 72 L62 60"/></symbol>
+  <symbol id="g-boot" viewBox="0 0 100 120"><path fill="currentColor" d="M30 6 H64 V60 L92 78 Q98 84 96 94 H10 V84 Q10 72 30 66 Z"/><path fill="#000" opacity=".28" d="M10 88 H96 V94 H10 Z"/><path fill="#000" opacity=".1" d="M30 6 H47 V66 L30 66 Z"/></symbol>
+  <symbol id="g-bag" viewBox="0 0 100 120"><path fill="currentColor" d="M18 42 H82 L88 112 H12 Z"/><path fill="none" stroke="currentColor" stroke-width="5" d="M34 42 Q50 8 66 42"/><path fill="#000" opacity=".1" d="M18 42 H50 V112 H12 Z"/></symbol>
+  <symbol id="i-hanger" viewBox="0 0 24 24"><path d="M12 4a2 2 0 0 1 2 2c0 1.5-2 2-2 3.5V11"/><path d="M12 11 3 16.5a1 1 0 0 0 .5 1.9h17a1 1 0 0 0 .5-1.9L12 11Z"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 13 9 5 9-5"/></symbol>
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4"/></symbol>
+  <symbol id="i-stats" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="i-back" viewBox="0 0 24 24"><path d="m14 6-6 6 6 6"/></symbol>
+  <symbol id="i-chev" viewBox="0 0 24 24"><path d="m10 6 6 6-6 6"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3 2.7 5.6 6.1.8-4.5 4.3 1.1 6.1L12 17l-5.4 2.8 1.1-6.1L3.2 9.4l6.1-.8L12 3Z"/></symbol>
+  <symbol id="i-edit" viewBox="0 0 24 24"><path d="M4 20h4l10-10-4-4L4 16v4Z"/><path d="m13 7 4 4"/></symbol>
+  <symbol id="i-more" viewBox="0 0 24 24"><circle cx="12" cy="12" r="1.2"/><circle cx="5" cy="12" r="1.2"/><circle cx="19" cy="12" r="1.2"/></symbol>
+  <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="m20 20-4.3-4.3"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4.5 4.5L19 7"/></symbol>
+  <symbol id="i-shuffle" viewBox="0 0 24 24"><path d="M3 7h3.5c2 0 3.5 1 4.5 2.5M3 17h3.5c2 0 3.5-1 4.5-2.5M14 7h4l3 3-3 3M14 17h4l3-3"/></symbol>
+  <symbol id="i-undo" viewBox="0 0 24 24"><path d="M8 7H4v4"/><path d="M4 11c2-3.5 5-5 8.5-5a7 7 0 1 1-6.9 8.5"/></symbol>
+  <symbol id="i-redo" viewBox="0 0 24 24"><path d="M16 7h4v4"/><path d="M20 11c-2-3.5-5-5-8.5-5a7 7 0 1 0 6.9 8.5"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 24 24"><path d="M8 13V5.5a1.5 1.5 0 0 1 3 0V11M11 5a1.5 1.5 0 0 1 3 0v6M14 6.5a1.5 1.5 0 0 1 3 0V13M17 9a1.5 1.5 0 0 1 3 0v5a6 6 0 0 1-6 6h-2.5a6 6 0 0 1-4.8-2.4L4 14.4a1.6 1.6 0 0 1 2.5-2L8 14"/></symbol>
+  <symbol id="i-wand" viewBox="0 0 24 24"><path d="m4 20 10-10M14 4l.8 2.2L17 7l-2.2.8L14 10l-.8-2.2L11 7l2.2-.8L14 4ZM19 12l.5 1.5L21 14l-1.5.5L19 16l-.5-1.5L17 14l1.5-.5L19 12Z"/></symbol>
+  <symbol id="i-select" viewBox="0 0 24 24"><path d="M5 5h4M15 5h4v4M19 15v4h-4M9 19H5v-4M5 9V5" /><path d="M9 12a3 3 0 1 0 6 0 3 3 0 0 0-6 0Z"/></symbol>
+  <symbol id="i-brush" viewBox="0 0 24 24"><path d="M20 4c-4 1-9 6-10 10l0 0a3 3 0 1 1-3 3c0-3 1-4 3-3"/><path d="M14 14c2-2 5-7 6-10"/></symbol>
+  <symbol id="i-eraser" viewBox="0 0 24 24"><path d="m4 15 9-9a2 2 0 0 1 3 0l4 4a2 2 0 0 1 0 3l-7 7H8l-4-4a1 1 0 0 1 0-1Z"/><path d="M9 20h11M7 12l5 5"/></symbol>
+  <symbol id="i-restore" viewBox="0 0 24 24"><path d="M4 12a8 8 0 1 0 3-6.2"/><path d="M4 4v5h5"/><path d="m9 13 2 2 4-4"/></symbol>
+  <symbol id="i-rotate" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-3-6.2"/><path d="M20 4v5h-5"/></symbol>
+  <symbol id="i-crop" viewBox="0 0 24 24"><path d="M6 2v16h16M2 6h16v16"/></symbol>
+  <symbol id="i-drop" viewBox="0 0 24 24"><path d="m4 20 1-4L15.5 5.5a2.1 2.1 0 1 1 3 3L8 19l-4 1Z"/><path d="m13 8 3 3"/></symbol>
+  <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M2 12h2M20 12h2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 11.5 3.3 3.3 0 0 0 7 18Z"/></symbol>
+  <symbol id="i-rain" viewBox="0 0 24 24"><path d="M7 15h10a4 4 0 0 0 .5-8A6 6 0 0 0 6 8.5 3.3 3.3 0 0 0 7 15Z"/><path d="M9 18v3M13 17v3M17 18v3"/></symbol>
+  <symbol id="i-partly" viewBox="0 0 24 24"><circle cx="8" cy="8" r="3"/><path d="M8 2v1.5M2 8h1.5M3.8 3.8l1 1M12.2 3.8l-1 1"/><path d="M9 20h8a3.5 3.5 0 0 0 .4-7A5 5 0 0 0 8 14.5 2.8 2.8 0 0 0 9 20Z"/></symbol>
+  <symbol id="i-flip" viewBox="0 0 24 24"><path d="M12 3v18M4 7l5 5-5 5V7ZM20 7l-5 5 5 5V7Z"/></symbol>
+  <symbol id="i-front" viewBox="0 0 24 24"><rect x="8" y="3" width="13" height="13" rx="2"/><path d="M3 8v11a2 2 0 0 0 2 2h11"/></symbol>
+  <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></symbol>
+  <symbol id="i-eye" viewBox="0 0 24 24"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/></symbol>
+</svg>
+
+<div class="wrap">
+<header class="intro">
+  <div>
+    <h1>aWardrobe, the new look</h1>
+    <p>Phase 3 mockups, draft 1. Each screen is 390 by 844, the size of an iPhone. The garments are drawn shapes standing in for your real cut-outs. Nothing here is built yet; it is a picture of the direction.</p>
+  </div>
+  <div class="ctl">
+    <button class="btn" id="pageTheme" aria-pressed="false">Page in dark</button>
+    <button class="btn" id="allDark" aria-pressed="false">All screens in dark</button>
+  </div>
+</header>
+
+<h2>Three directions, one recommended</h2>
+<p class="lead">The brief wanted a fresh look, so here are three ways it could go. The screens below follow the first. Say if you would rather see the second or third worked up instead.</p>
+<section class="board">
+  <article class="tile">
+    <h3>Pattern paper <span class="rec">Recommended</span></h3>
+    <p>The dressmaker's table: pattern-cutting paper with its faint dot grid, blue ink, and the yellow of a tape measure for the one thing you are acting on. Cut-outs sit on the paper with a soft shadow, like garments laid out. One type family, Bricolage Grotesque, in a display cut for titles and a text cut for everything else.</p>
+    <div class="sw"><span><i style="background:#F4F4F1"></i>Paper</span><span><i style="background:#16213A"></i>Ink</span><span><i style="background:#4F5566"></i>Graphite</span><span><i style="background:#F3C94A"></i>Tape</span><span><i style="background:#5B7FBF"></i>Chalk</span></div>
+    <div class="mini a"><div><div class="t1">Closet</div><div class="t2">184 pieces</div></div><svg class="g" style="color:#223055"><use href="#g-jumper"/></svg></div>
+  </article>
+  <article class="tile">
+    <h3>Lookbook</h3>
+    <p>A fashion lookbook: pure white, black type, an italic serif for titles, one coral accent, and cut-outs shown large with almost no interface around them. Beautiful for browsing, quieter for the editor, where tools need to stand out.</p>
+    <div class="sw"><span><i style="background:#FFFFFF"></i>White</span><span><i style="background:#1A1A1A"></i>Black</span><span><i style="background:#8A8A8A"></i>Grey</span><span><i style="background:#FF5A3C"></i>Coral</span></div>
+    <div class="mini b"><div><div class="t1">Closet</div><div class="t2">184 pieces</div></div><svg class="g" style="color:#223055"><use href="#g-jumper"/></svg></div>
+  </article>
+  <article class="tile">
+    <h3>Night studio</h3>
+    <p>Dark first, like a photo studio: near-black surfaces so cut-outs glow, a violet accent, a geometric display face. Strong on a phone at night, and the editor feels like a tool. Light mode becomes the second-class theme.</p>
+    <div class="sw"><span><i style="background:#0F1115"></i>Studio</span><span><i style="background:#E6E6E6"></i>Light</span><span><i style="background:#6B7280"></i>Steel</span><span><i style="background:#8B7CFF"></i>Violet</span></div>
+    <div class="mini c"><div><div class="t1">Closet</div><div class="t2">184 pieces</div></div><svg class="g" style="color:#C9CBD6"><use href="#g-jumper"/></svg></div>
+  </article>
+</section>
+
+<h2>The screens</h2>
+<p class="lead">Six screens from the use cases, then two of them again in dark mode. The tape-measure strength control on the editor is the one bold element; everything else stays quiet.</p>
+<section class="screens" id="screens">
+
+<div class="shot" data-id="closet">
+<div class="ph-wrap"><div class="ph light" id="s-closet">
+  <div class="status"><span>9:41</span><span class="sig"><i></i></span></div>
+  <div class="screen">
+    <div class="top"><div><h1 class="title">Closet</h1><p class="sub">184 pieces</p></div><div class="ico"><span class="ib"><svg><use href="#i-more"/></svg></span></div></div>
+    <div class="today">
+      <div class="wx"><svg><use href="#i-partly"/></svg><div><b>14°, mild and dry</b><span>A top and a light layer. Here is one that has not been out for a while.</span></div></div>
+      <div class="idea stage"><svg class="g" style="color:#223055"><use href="#g-jumper"/></svg><svg class="g" style="color:#4e6c96"><use href="#g-jeans"/></svg><svg class="g" style="color:#6c7040"><use href="#g-jacket"/></svg><svg class="g" style="color:#f0efe9"><use href="#g-trainer"/></svg></div>
+      <div class="row"><span class="pb pri"><svg><use href="#i-check"/></svg>Wear this today</span><span class="pb"><svg><use href="#i-shuffle"/></svg>Another idea</span></div>
+    </div>
+    <div class="search"><svg><use href="#i-search"/></svg>Search by name, brand or colour</div>
+    <div class="chips"><span class="chip on">All <small>184</small></span><span class="chip">Tops <small>61</small></span><span class="chip">Bottoms <small>34</small></span><span class="chip">Outerwear <small>18</small></span><span class="chip">Shoes <small>22</small></span><span class="chip">Dresses <small>9</small></span></div>
+    <div class="grid">
+      <div class="card"><svg class="g fav" style="color:#223055"><use href="#g-jumper"/></svg><span>Navy jumper</span></div>
+      <div class="card"><svg class="g" style="color:#4e6c96"><use href="#g-jeans"/></svg><span>Blue jeans</span></div>
+      <div class="card"><svg class="g" style="color:#f0efe9"><use href="#g-shirt"/></svg><span>White shirt</span></div>
+      <div class="card"><svg class="g" style="color:#6c7040"><use href="#g-jacket"/></svg><span>Olive jacket</span></div>
+      <div class="card"><svg class="g" style="color:#78202f"><use href="#g-dress"/></svg><span>Burgundy dress</span></div>
+      <div class="card"><svg class="g" style="color:#1a1a1c"><use href="#g-boot"/></svg><span>Black boots</span></div>
+    </div>
+  </div>
+  <nav class="tabs"><span class="tab" aria-current="page"><svg><use href="#i-hanger"/></svg>Closet</span><span class="tab"><svg><use href="#i-layers"/></svg>Outfits</span><span class="tab add"><span class="plus"><svg><use href="#i-plus"/></svg></span>Add</span><span class="tab"><svg><use href="#i-cal"/></svg>Calendar</span><span class="tab"><svg><use href="#i-stats"/></svg>Stats</span></nav>
+</div></div>
+<p class="cap"><b>Closet, the home.</b> Today's weather and an idea at the top with one tap to wear it; then search, category chips with counts, and the garments as plain cut-outs with no boxes. A yellow dot marks a favourite.</p>
+</div>
+
+<div class="shot" data-id="garment">
+<div class="ph-wrap"><div class="ph light" id="s-garment">
+  <div class="status"><span>9:41</span><span class="sig"><i></i></span></div>
+  <div class="screen">
+    <div class="top"><span class="back"><svg><use href="#i-back"/></svg>Closet</span><div class="ico"><span class="ib on"><svg><use href="#i-star"/></svg></span><span class="ib"><svg><use href="#i-edit"/></svg></span></div></div>
+    <div class="stage" style="height:270px"><svg class="g" style="color:#223055;position:absolute;left:92px;top:14px;width:206px;height:246px"><use href="#g-jumper"/></svg></div>
+    <div><h1 class="title sm">Navy jumper</h1><p class="sub">Uniqlo, jumper, size M</p></div>
+    <div class="swatches"><span class="swatch"><i style="background:#223055"></i>Navy</span><span class="swatch"><i style="background:#c6c8cc"></i>Light grey</span></div>
+    <div class="tags"><span class="tag">Autumn</span><span class="tag">Winter</span><span class="tag">Everyday</span><span class="tag">Work</span></div>
+    <div class="stats"><div class="stat"><b>12</b><span>wears</span></div><div class="stat"><b>Tuesday</b><span>last worn</span></div><div class="stat"><b>£2.91</b><span>per wear</span></div></div>
+    <div class="row"><span class="pb pri"><svg><use href="#i-check"/></svg>Wore it today</span><span class="pb"><svg><use href="#i-cal"/></svg>Another day</span></div>
+    <p class="sh">In 3 outfits</p>
+    <div class="strip">
+      <div class="omini"><svg class="g" style="color:#223055;left:14px;top:6px;width:44px;height:50px"><use href="#g-jumper"/></svg><svg class="g" style="color:#4e6c96;left:18px;top:42px;width:38px;height:46px"><use href="#g-jeans"/></svg></div>
+      <div class="omini"><svg class="g" style="color:#223055;left:14px;top:6px;width:44px;height:50px"><use href="#g-jumper"/></svg><svg class="g" style="color:#1a1a1c;left:18px;top:42px;width:38px;height:46px"><use href="#g-skirt"/></svg></div>
+      <div class="omini"><svg class="g" style="color:#6c7040;left:6px;top:4px;width:44px;height:52px"><use href="#g-jacket"/></svg><svg class="g" style="color:#223055;left:26px;top:10px;width:40px;height:48px"><use href="#g-jumper"/></svg><svg class="g" style="color:#b8916a;left:20px;top:46px;width:36px;height:44px"><use href="#g-jeans"/></svg></div>
+    </div>
+    <p class="muted">Paid £34.90, bought 2 Nov 2025.</p>
+  </div>
+  <nav class="tabs"><span class="tab" aria-current="page"><svg><use href="#i-hanger"/></svg>Closet</span><span class="tab"><svg><use href="#i-layers"/></svg>Outfits</span><span class="tab add"><span class="plus"><svg><use href="#i-plus"/></svg></span>Add</span><span class="tab"><svg><use href="#i-cal"/></svg>Calendar</span><span class="tab"><svg><use href="#i-stats"/></svg>Stats</span></nav>
+</div></div>
+<p class="cap"><b>A garment.</b> The cut-out on the paper stage with a soft shadow, the three numbers that matter, and the two wear buttons. The outfits it belongs to are drawn as small stages.</p>
+</div>
+
+<div class="shot" data-id="editor">
+<div class="ph-wrap"><div class="ph light" id="s-editor">
+  <div class="status"><span>9:41</span><span class="sig"><i></i></span></div>
+  <div class="screen">
+    <div class="top"><span class="ib" aria-label="Cancel"><svg><use href="#i-back"/></svg></span><span style="font-weight:600;font-size:15px;white-space:nowrap">Fix the cut-out</span><div class="ico"><span class="pill"><svg><use href="#i-undo"/></svg>Undo brush</span><span class="pill" disabled><svg><use href="#i-redo"/></svg></span></div></div>
+    <div class="stage" style="height:330px">
+      <span class="zoom">1.5×</span>
+      <svg class="g" style="color:#223055;position:absolute;left:46px;top:-6px;width:298px;height:356px"><use href="#g-jumper"/></svg>
+      <div style="position:absolute;left:272px;top:102px;width:46px;height:60px;background:rgba(214,205,186,.6);border-radius:50% 40% 60% 50%"></div>
+      <div style="position:absolute;left:112px;top:214px;width:54px;height:40px;background:var(--p-soft);border-radius:60% 40% 50% 50%"></div>
+      <span class="ring" style="left:120px;top:216px;width:34px;height:34px"></span>
+    </div>
+    <div class="tapectl"><div class="lbl"><span>Keep more</span><b>Cut-out strength</b><span>Remove more</span></div><div class="tape"><span class="num" style="left:4px">0</span><span class="num" style="left:94px">25</span><span class="num" style="left:184px">50</span><span class="num" style="left:272px">75</span><span class="num" style="left:328px">100</span><span class="thumb" style="left:166px"></span></div></div>
+    <div class="tools"><span class="tool"><svg><use href="#i-hand"/></svg>Move</span><span class="tool"><svg><use href="#i-wand"/></svg>Wand</span><span class="tool"><svg><use href="#i-select"/></svg>Select</span><span class="tool"><svg><use href="#i-brush"/></svg>Paint</span><span class="tool"><svg><use href="#i-eraser"/></svg>Eraser</span><span class="tool on"><svg><use href="#i-restore"/></svg>Restore</span><span class="tool"><svg><use href="#i-rotate"/></svg>Rotate</span><span class="tool"><svg><use href="#i-crop"/></svg>Crop</span><span class="tool"><svg><use href="#i-drop"/></svg>Dropper</span></div>
+    <div class="row" style="justify-content:space-between"><div class="brushes"><span style="font-size:13px;color:var(--p-mute)">Brush</span><i class="s"></i><i class="m on"></i><i class="l"></i></div><span class="pill"><svg><use href="#i-eye"/></svg>Hold to see original</span></div>
+    <div class="row"><span class="pb sm">Remove skin</span><span class="pb sm">Cut out again</span><span class="pb sm">Colours again</span></div>
+    <span class="pb pri blk">Add to closet</span>
+  </div>
+</div></div>
+<p class="cap"><b>The editor.</b> The strength control is drawn as a tape measure. Undo names what it will undo. The brush ring in chalk blue shows the size under the finger; Restore is the selected tool, in tape yellow. The tool row scrolls sideways for Crop and Dropper.</p>
+</div>
+
+<div class="shot" data-id="builder">
+<div class="ph-wrap"><div class="ph light" id="s-builder">
+  <div class="status"><span>9:41</span><span class="sig"><i></i></span></div>
+  <div class="screen">
+    <div class="top"><span class="back"><svg><use href="#i-back"/></svg>Outfits</span><span style="font-weight:600">New outfit</span><div class="ico"><span class="pill"><svg><use href="#i-undo"/></svg></span><span class="pill" disabled><svg><use href="#i-redo"/></svg></span></div></div>
+    <div class="stage" style="height:300px">
+      <div class="piece" style="left:118px;top:146px;width:124px;height:150px"><svg class="g" style="color:#4e6c96"><use href="#g-jeans"/></svg></div>
+      <div class="piece sel" style="left:94px;top:30px;width:160px;height:154px;transform:rotate(-4deg)"><span class="ang">-4°</span><svg class="g" style="color:#223055"><use href="#g-jumper"/></svg><span class="hdl"></span></div>
+      <div class="piece" style="left:28px;top:224px;width:96px;height:76px;transform:rotate(10deg) scaleX(-1)"><svg class="g" style="color:#f0efe9"><use href="#g-trainer"/></svg></div>
+      <div class="piece" style="left:238px;top:56px;width:92px;height:110px"><svg class="g" style="color:#b8916a"><use href="#g-bag"/></svg></div>
+    </div>
+    <div class="toolrow"><span class="pill"><svg><use href="#i-undo"/></svg>Tilt</span><span class="deg">-4°</span><span class="pill">Tilt<svg><use href="#i-redo"/></svg></span><span class="pill" aria-label="Mirror"><svg><use href="#i-flip"/></svg></span><span class="pill" aria-label="Bring to front"><svg><use href="#i-front"/></svg></span><span class="pill" aria-label="Take off"><svg><use href="#i-trash"/></svg></span></div>
+    <div class="mixer">
+      <div class="slot"><span class="arr"><svg><use href="#i-back"/></svg></span><div class="wheel"><svg class="g side" style="color:#c6c8cc"><use href="#g-tee"/></svg><svg class="g" style="color:#223055"><use href="#g-jumper"/></svg><svg class="g side" style="color:#f0efe9"><use href="#g-shirt"/></svg></div><span class="arr"><svg><use href="#i-chev"/></svg></span><div class="cat"><b>Tops</b><span>Navy jumper, 12 of 61</span></div></div>
+      <div class="slot"><span class="arr"><svg><use href="#i-back"/></svg></span><div class="wheel"><svg class="g side" style="color:#b8916a"><use href="#g-jeans"/></svg><svg class="g" style="color:#4e6c96"><use href="#g-jeans"/></svg><svg class="g side" style="color:#1a1a1c"><use href="#g-skirt"/></svg></div><span class="arr"><svg><use href="#i-chev"/></svg></span><div class="cat"><b>Bottoms</b><span>Blue jeans, 3 of 34</span></div></div>
+      <div class="slot"><span class="arr"><svg><use href="#i-back"/></svg></span><div class="wheel"><svg class="g side" style="color:#1a1a1c"><use href="#g-boot"/></svg><svg class="g" style="color:#f0efe9"><use href="#g-trainer"/></svg><span class="none">none</span></div><span class="arr"><svg><use href="#i-chev"/></svg></span><div class="cat"><b>Shoes</b><span>White trainers, 22 of 22</span></div></div>
+    </div>
+    <div class="row"><span class="pb sm"><svg><use href="#i-plus"/></svg>Add a slot</span><span class="pb sm"><svg><use href="#i-shuffle"/></svg>Shuffle</span><span class="pb pri sm" style="margin-left:auto">Save outfit</span></div>
+  </div>
+</div></div>
+<p class="cap"><b>The outfit builder with mix and match.</b> The selected piece shows its angle and a corner handle. Each slot is a revolver: the piece before and after are visible either side, so you can see what is coming. Add a slot puts a second top on as a layer.</p>
+</div>
+
+<div class="shot" data-id="week">
+<div class="ph-wrap"><div class="ph light" id="s-week">
+  <div class="status"><span>9:41</span><span class="sig"><i></i></span></div>
+  <div class="screen">
+    <div class="top"><div><h1 class="title">This week</h1><p class="sub">Ideas for each day, from the forecast for Leeds</p></div><span class="pill">Month</span></div>
+    <div class="days">
+      <div class="day plan"><div class="dn"><b>Mon</b><span>5 Oct</span></div><div class="wx"><svg><use href="#i-sun"/></svg><span><b>16°</b> 9°</span></div><div class="pcs"><svg class="g" style="color:#f0efe9"><use href="#g-shirt"/></svg><svg class="g" style="color:#b8916a"><use href="#g-jeans"/></svg><svg class="g" style="color:#f0efe9"><use href="#g-trainer"/></svg></div><div class="act"><span class="ok"><svg><use href="#i-check"/></svg>Planned</span></div></div>
+      <div class="day"><div class="dn"><b>Tue</b><span>6 Oct</span></div><div class="wx"><svg><use href="#i-partly"/></svg><span><b>13°</b> 8°</span></div><div class="pcs"><svg class="g" style="color:#223055"><use href="#g-jumper"/></svg><svg class="g" style="color:#4e6c96"><use href="#g-jeans"/></svg><svg class="g" style="color:#1a1a1c"><use href="#g-boot"/></svg></div><div class="act"><span class="pill">Plan this</span><span class="pill">Another</span></div></div>
+      <div class="day"><div class="dn"><b>Wed</b><span>7 Oct</span></div><div class="wx"><svg><use href="#i-rain"/></svg><span><b>11°</b> 7°</span></div><div class="pcs"><svg class="g" style="color:#6c7040"><use href="#g-coat"/></svg><svg class="g" style="color:#c6c8cc"><use href="#g-jumper"/></svg><svg class="g" style="color:#1a1a1c"><use href="#g-boot"/></svg></div><div class="act"><span class="pill">Plan this</span><span class="pill">Another</span></div></div>
+      <div class="day"><div class="dn"><b>Thu</b><span>8 Oct</span></div><div class="wx"><svg><use href="#i-cloud"/></svg><span><b>12°</b> 6°</span></div><div class="pcs"><svg class="g" style="color:#78202f"><use href="#g-dress"/></svg><svg class="g" style="color:#1a1a1c"><use href="#g-jacket"/></svg></div><div class="act"><span class="pill">Plan this</span><span class="pill">Another</span></div></div>
+      <div class="day"><div class="dn"><b>Fri</b><span>9 Oct</span></div><div class="wx"><svg><use href="#i-partly"/></svg><span><b>14°</b> 8°</span></div><div class="pcs"><svg class="g" style="color:#f0efe9"><use href="#g-tee"/></svg><svg class="g" style="color:#6c7040"><use href="#g-jacket"/></svg><svg class="g" style="color:#4e6c96"><use href="#g-jeans"/></svg></div><div class="act"><span class="pill">Plan this</span><span class="pill">Another</span></div></div>
+      <div class="day"><div class="dn"><b>Sat</b><span>10 Oct</span></div><div class="wx"><svg><use href="#i-sun"/></svg><span><b>17°</b> 10°</span></div><div class="pcs"><svg class="g" style="color:#c9a02a"><use href="#g-tee"/></svg><svg class="g" style="color:#b8916a"><use href="#g-skirt"/></svg><svg class="g" style="color:#f0efe9"><use href="#g-trainer"/></svg></div><div class="act"><span class="pill">Plan this</span><span class="pill">Another</span></div></div>
+      <div class="day"><div class="dn"><b>Sun</b><span>11 Oct</span></div><div class="wx"><svg><use href="#i-cloud"/></svg><span><b>13°</b> 9°</span></div><div class="pcs"><svg class="g" style="color:#2f8a4a"><use href="#g-jumper"/></svg><svg class="g" style="color:#1a1a1c"><use href="#g-jeans"/></svg></div><div class="act"><span class="pill">Plan this</span><span class="pill">Another</span></div></div>
+    </div>
+    <p class="muted">Tap a day to choose your own outfit or pieces instead.</p>
+  </div>
+  <nav class="tabs"><span class="tab"><svg><use href="#i-hanger"/></svg>Closet</span><span class="tab"><svg><use href="#i-layers"/></svg>Outfits</span><span class="tab add"><span class="plus"><svg><use href="#i-plus"/></svg></span>Add</span><span class="tab" aria-current="page"><svg><use href="#i-cal"/></svg>Calendar</span><span class="tab"><svg><use href="#i-stats"/></svg>Stats</span></nav>
+</div></div>
+<p class="cap"><b>This week.</b> Seven days with the forecast and an idea each, or the plan once you have chosen. A planned day carries a tape-yellow edge. Wednesday's idea has a coat because rain is forecast.</p>
+</div>
+
+<div class="shot" data-id="stats">
+<div class="ph-wrap"><div class="ph light" id="s-stats">
+  <div class="status"><span>9:41</span><span class="sig"><i></i></span></div>
+  <div class="screen">
+    <div class="top"><div><h1 class="title">Stats</h1><p class="sub">What you actually wear</p></div></div>
+    <div class="big4"><div class="stat"><b>184</b><span>pieces</span></div><div class="stat"><b>23</b><span>outfits</span></div><div class="stat"><b>£2,140</b><span>closet value</span></div><div class="stat"><b>19</b><span>days logged in October</span></div></div>
+    <p class="sh">Most worn</p>
+    <div class="list">
+      <div class="li"><svg class="g" style="color:#4e6c96"><use href="#g-jeans"/></svg><div><div class="nm">Blue jeans</div><div class="bar"><i style="width:100%"></i></div></div><span class="v">41</span></div>
+      <div class="li"><svg class="g" style="color:#f0efe9"><use href="#g-trainer"/></svg><div><div class="nm">White trainers</div><div class="bar"><i style="width:88%"></i></div></div><span class="v">36</span></div>
+      <div class="li"><svg class="g" style="color:#223055"><use href="#g-jumper"/></svg><div><div class="nm">Navy jumper</div><div class="bar"><i style="width:29%"></i></div></div><span class="v">12</span></div>
+      <div class="li"><svg class="g" style="color:#6c7040"><use href="#g-jacket"/></svg><div><div class="nm">Olive jacket</div><div class="bar"><i style="width:24%"></i></div></div><span class="v">10</span></div>
+    </div>
+    <p class="sh">Cost per wear</p>
+    <p class="muted">Price divided by wears. Unworn counts as one wear.</p>
+    <div class="list">
+      <div class="li"><svg class="g" style="color:#4e6c96"><use href="#g-jeans"/></svg><div class="nm">Blue jeans</div><span class="v">£1.10</span></div>
+      <div class="li"><svg class="g" style="color:#f0efe9"><use href="#g-trainer"/></svg><div class="nm">White trainers</div><span class="v">£2.36</span></div>
+      <div class="li"><svg class="g" style="color:#78202f"><use href="#g-dress"/></svg><div class="nm">Burgundy dress <span style="color:var(--p-mute);font-weight:400">yet to earn its keep</span></div><span class="v">£89</span></div>
+    </div>
+  </div>
+  <nav class="tabs"><span class="tab"><svg><use href="#i-hanger"/></svg>Closet</span><span class="tab"><svg><use href="#i-layers"/></svg>Outfits</span><span class="tab add"><span class="plus"><svg><use href="#i-plus"/></svg></span>Add</span><span class="tab"><svg><use href="#i-cal"/></svg>Calendar</span><span class="tab" aria-current="page"><svg><use href="#i-stats"/></svg>Stats</span></nav>
+</div></div>
+<p class="cap"><b>Stats.</b> Four plain numbers, then most worn as tape-yellow bars, then cost per wear with the one that has yet to earn its keep.</p>
+</div>
+
+</section>
+
+<section class="notes">
+  <p><b style="color:var(--fg)">What to tell me.</b> Anything at all, but these are the choices in front of you:</p>
+  <ul>
+    <li>Pattern paper, Lookbook or Night studio.</li>
+    <li>The tape-measure yellow as the one accent, or another colour.</li>
+    <li>The type: one family (Bricolage Grotesque) with a display cut for titles.</li>
+    <li>The tab bar with Add in the middle, or Add in the top corner.</li>
+    <li>The Today card at the top of the Closet, or a separate home screen.</li>
+  </ul>
+</section>
+</div>
+
+<script>
+(function(){
+  var root=document.documentElement;
+  var q={};try{location.search.slice(1).split('&').forEach(function(p){if(!p)return;var kv=p.split('=');q[decodeURIComponent(kv[0])]=decodeURIComponent(kv[1]||'');});}catch(e){}
+  /* two of the screens again in dark */
+  var screens=document.getElementById('screens');
+  [['closet','Closet in dark mode. The paper becomes ink; the tape yellow stays as the one accent.'],['editor','The editor in dark mode. The stage is a deeper ink with a dimmer dot grid, so a cut-out still reads as laid out on paper.']].forEach(function(d){
+    var src=screens.querySelector('.shot[data-id="'+d[0]+'"]');if(!src)return;
+    var c=src.cloneNode(true);c.setAttribute('data-id',d[0]+'-dark');
+    var ph=c.querySelector('.ph');ph.classList.remove('light');ph.classList.add('dark');ph.id='s-'+d[0]+'-dark';
+    c.querySelector('.cap').innerHTML='<b>'+d[1].split('. ')[0]+'.</b> '+d[1].split('. ').slice(1).join('. ');
+    screens.appendChild(c);
+  });
+  function fit(){
+    var shots=document.querySelectorAll('.shot');
+    shots.forEach(function(s){var w=s.clientWidth||390;var k=Math.min(1,w/390);s.querySelector('.ph-wrap').style.setProperty('--k',k);s.querySelector('.ph').style.setProperty('--k',k);});
+  }
+  var pageBtn=document.getElementById('pageTheme');
+  function setPage(dark){root.setAttribute('data-theme',dark?'dark':'light');pageBtn.setAttribute('aria-pressed',String(dark));}
+  pageBtn.addEventListener('click',function(){setPage(pageBtn.getAttribute('aria-pressed')!=='true');});
+  var allBtn=document.getElementById('allDark');
+  allBtn.addEventListener('click',function(){var on=allBtn.getAttribute('aria-pressed')!=='true';allBtn.setAttribute('aria-pressed',String(on));document.querySelectorAll('.shot:not([data-id$="-dark"]) .ph').forEach(function(ph){ph.classList.toggle('dark',on);ph.classList.toggle('light',!on);});});
+  if(q.only){
+    document.body.classList.add('bare');
+    document.querySelectorAll('.intro, .board, h2, .lead, .notes, .cap').forEach(function(el){el.hidden=true;});
+    document.querySelectorAll('.shot').forEach(function(s){s.hidden=s.getAttribute('data-id')!==q.only;});
+    document.body.style.padding='0';screens.style.display='block';
+    var ph=document.querySelector('.shot[data-id="'+q.only+'"] .ph');
+    if(ph&&q.theme==='dark'){ph.classList.remove('light');ph.classList.add('dark');}
+    var w=document.querySelector('.shot[data-id="'+q.only+'"] .ph-wrap');if(w){w.style.setProperty('--k',1);w.style.margin='0';}
+    if(ph)ph.style.setProperty('--k',1);
+  } else { fit(); window.addEventListener('resize',fit); }
+})();
+</script>
+</body>
+</html>
