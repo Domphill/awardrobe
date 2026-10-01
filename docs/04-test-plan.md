@@ -1,6 +1,6 @@
 # aWardrobe: Test Plan
 
-Phase 4 of 5. Draft 1, written 1 October 2026, waiting for your approval. Builds on `01-requirements.md` (Draft 2), `02-use-cases.md` and `03-architecture.md`.
+Phase 4 of 5. Draft 1, written 1 October 2026, approved 1 October 2026. Builds on `01-requirements.md` (Draft 2), `02-use-cases.md` and `03-architecture.md`. `05-plan.md` section 12 proposes extra tests (U-SEG-11, U-SEG-12, U-MOD-11, U-SRCH-6, C-9 and additions to E-1, E-10, E-16) that will be added here as Draft 2 when the plan is approved.
 
 ## 0. How to read this
 
