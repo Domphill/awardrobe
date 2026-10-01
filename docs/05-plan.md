@@ -1,6 +1,6 @@
 # aWardrobe: Implementation Plan
 
-Phase 5 of 5. Draft 1, written 1 October 2026, waiting for your approval. Builds on the approved `01-requirements.md`, `02-use-cases.md`, `03-architecture.md` and `04-test-plan.md`.
+Phase 5 of 5. Draft 1, written 1 October 2026, approved 1 October 2026; building runs in-session, test-first, with an independent review of each milestone before release. Builds on the approved `01-requirements.md`, `02-use-cases.md`, `03-architecture.md` and `04-test-plan.md`.
 
 ## 0. How to read this
 
