@@ -46,6 +46,22 @@ export function touch(rec) {
   return rec;
 }
 
+/* ---------- days ---------- */
+const pad2 = (n) => String(n).padStart(2, '0');
+export const dayKey = (d) => d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
+export const parseDay = (key) => {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d);
+};
+export const addDays = (date, n) => {
+  const d = new Date(date.getTime());
+  d.setDate(d.getDate() + n);
+  return d;
+};
+/* days from a to b: positive when b is later */
+export const dayDiff = (a, b) => Math.round((parseDay(b) - parseDay(a)) / 86400000);
+export const todayKey = (now) => dayKey(now || new Date());
+
 /* ---------- validation (FR-60) ---------- */
 const blank = (s) => !s || !String(s).trim();
 export function validateGarment(g) {
