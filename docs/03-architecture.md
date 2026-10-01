@@ -1,6 +1,6 @@
 # aWardrobe: Architecture and Design
 
-Phase 3 of 5. Draft 1, written 1 October 2026, waiting for your approval. Builds on `01-requirements.md` (Draft 2) and `02-use-cases.md`.
+Phase 3 of 5. Draft 1, written 1 October 2026, approved 1 October 2026 together with the "Pattern paper" design direction in the mockups. Builds on `01-requirements.md` (Draft 2) and `02-use-cases.md`.
 
 ## 0. How to read this
 
