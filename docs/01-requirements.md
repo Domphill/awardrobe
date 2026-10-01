@@ -1,6 +1,6 @@
 # aWardrobe: Requirements
 
-Phase 1 of 5. Draft 1, written 1 October 2026, waiting for your approval.
+Phase 1 of 5. Draft 2, 1 October 2026. Draft 1 was approved on 1 October 2026; Draft 2 applies the three amendments agreed with the use cases (FR-14, FR-49 and FR-74, see `02-use-cases.md` section 4). Nothing else changed.
 
 ## 0. How to read this
 
@@ -56,7 +56,7 @@ Laundry state and several photos per garment were offered and not chosen, so the
 - **FR-11** The garment page shows how many times it has been worn, when it was last worn, and its cost per wear (price divided by wears, where an unworn garment counts as one wear).
 - **FR-12** "Wore it today" logs the garment on today's date with one tap, and "Another day" logs it on a past date or plans it for a future one.
 - **FR-13** The garment page lists the outfits it is in, and each one opens that outfit.
-- **FR-14** A garment can be marked gone from the closet with a reason (sold, donated, binned, lost, other) and a date, and can be brought back.
+- **FR-14** A garment can be marked gone from the closet with a reason (sold, donated, binned, lost, other) and a date, its page then offers "Bring back" in place of the wear buttons, and bringing it back restores it to the Closet.
 - **FR-15** A gone garment disappears from the Closet, the outfit builder, the revolver and ideas, but stays on the calendar days it was worn, in the outfits it was saved in (marked gone), and in the stats.
 - **FR-16** Cost per wear is still shown for a gone garment, so the stats answer "was it worth it".
 - **FR-17** A garment can be marked favourite and unmarked from its page and from the editor.
@@ -97,7 +97,7 @@ Laundry state and several photos per garment were offered and not chosen, so the
 - **FR-46** The Undo and Redo buttons show whether they can be used and name what they will undo or redo (for example "Undo crop").
 - **FR-47** Press-and-hold on a "show original" button shows the untouched photo behind the cut-out, so it is obvious what is missing.
 - **FR-48** The transparent part of the cut-out is shown as a checkerboard, and can be switched to a plain light or dark background to judge the edges.
-- **FR-49** Leaving the editor with unsaved changes asks before discarding, and an unsaved draft survives switching tabs, the phone putting the app in the background, and the app being closed and reopened.
+- **FR-49** Leaving the cut-out editor or the outfit builder with unsaved changes asks before discarding, and an unsaved draft survives switching tabs, the phone putting the app in the background, and the app being closed and reopened.
 - **FR-50** Any garment can be kept as the whole photo instead of a cut-out, by choice.
 - **FR-51** A garment photographed on a person can be cropped, selected with the snapping brush and kept on its own, and have skin removed, in any order, and the result can be saved as a normal cut-out.
 - **FR-52** The editor works with a mouse and keyboard on a PC as well as with touch on a phone, and every tool can be reached by keyboard.
@@ -131,7 +131,7 @@ Laundry state and several photos per garment were offered and not chosen, so the
 - **FR-71** Tidy layout rearranges all pieces into the default layout in one tap.
 - **FR-72** Every builder action (move, resize, tilt, mirror, layer order, add, take off, revolver turn, shuffle, tidy) can be undone and redone.
 - **FR-73** An outfit has a name (suggested from its pieces), seasons, occasions and a favourite flag.
-- **FR-74** Saving an outfit renders a picture of the canvas, used in lists, on the calendar and in ideas.
+- **FR-74** Saving an outfit needs at least one piece, and renders a picture of the canvas that is used in lists, on the calendar and in ideas.
 - **FR-75** An outfit can be logged as worn today or on another day, or planned for a day ahead, from its page.
 - **FR-76** An outfit's page shows how many times it has been worn and when last.
 - **FR-77** Deleting an outfit asks for confirmation, keeps the garments, and days that had the outfit keep its pieces as individual garments.

@@ -1,6 +1,6 @@
 # aWardrobe: Use Cases
 
-Phase 2 of 5. Draft 1, written 1 October 2026, waiting for your approval. Builds on the approved `01-requirements.md`.
+Phase 2 of 5. Draft 1, written 1 October 2026, approved 1 October 2026. Builds on `01-requirements.md`; the three amendments in section 4 have been applied there as Draft 2.
 
 ## 0. How to read this
 
