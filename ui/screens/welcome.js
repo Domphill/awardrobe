@@ -1,5 +1,5 @@
 /* aWardrobe screen: the first open (FR-109). */
-import { h, btn } from '../components.js';
+import { h, btn, toast } from '../components.js';
 import { icon, logo } from '../icons.js';
 
 export const welcome = {
@@ -20,7 +20,11 @@ export const welcome = {
         h('p.fineprint', 'Everything stays on your phone. Nothing is sent anywhere, apart from an optional weather forecast for your town.'),
         h('div.actions.center', btn('Open my wardrobe', async () => {
           shell.onboardedThisSession = true;
-          await app.prefs.set({ onboarded: true });
+          try {
+            await app.prefs.set({ onboarded: true });
+          } catch (e) {
+            toast("That couldn't be saved, so the welcome may show again next time. " + ((e && e.message) || ''));
+          }
           app.storage.persist();
           router.go('closet', null, { replace: true });
         }, { kind: 'primary', id: 'welcome-start' }))

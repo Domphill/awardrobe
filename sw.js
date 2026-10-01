@@ -39,13 +39,10 @@ const FILES = [
   'infra/platform.js'
 ];
 
+/* A new version waits until the app asks for it (the Reload button), so a running page never
+   mixes old and new files (FR-114). */
 self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches
-      .open(VERSION)
-      .then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' }))))
-      .then(() => self.skipWaiting())
-  );
+  e.waitUntil(caches.open(VERSION).then((c) => c.addAll(FILES.map((f) => new Request(f, { cache: 'reload' })))));
 });
 
 self.addEventListener('activate', (e) => {

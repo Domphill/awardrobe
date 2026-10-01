@@ -100,8 +100,8 @@
   color: #fff;
 }
 .btn.small {
-  min-height: 36px;
-  padding: 6px 12px;
+  min-height: var(--tap);
+  padding: 6px 14px;
   font-size: 13.5px;
 }
 .btn.block {
@@ -180,7 +180,7 @@
   gap: 2px;
 }
 .segmented button {
-  min-height: 38px;
+  min-height: var(--tap);
   min-width: 56px;
   padding: 6px 14px;
   border: 0;

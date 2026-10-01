@@ -23,7 +23,7 @@ Everything lives in `dev/`, which stays out of git (NFR-36). It is copied from t
 |---|---|
 | `dev/cdp.ps1` | Drives headless Edge over the Chrome DevTools Protocol (copied from the old app): open a page, run JavaScript in it, take a screenshot, collect console messages and exceptions, and, new, log every network request. |
 | `dev/test.ps1` | The one command. Starts a local web server on the repo folder, then runs the phases in order: checks, unit tests, end-to-end tests, performance tests, offline test. Prints one line per test, a summary, and exits with a non-zero code on any failure. Options: `-Shots <folder>` saves screenshots, `-Soak` adds the long storage test, `-Only <phase>` runs one phase. |
-| `dev/unit.html` and `dev/runner.js` | A page that imports the app's modules from `src/` and the test files from `dev/tests/`, runs them with a tiny runner (`test(name, fn)`, `expect(...)`, async allowed), and exposes the results as JSON for `test.ps1` to read. |
+| `dev/unit.html` and `dev/runner.js` | A page that imports the app's modules from the four layer folders (`ui/`, `app/`, `domain/`, `infra/`) and the test files from `dev/tests/`, runs them with a tiny runner (`test(id, name, fn)`, `expect(...)`, async allowed), and exposes the results as JSON for `test.ps1` to read. |
 | `dev/tests/*.test.js` | The unit tests, one file per module (section 3). |
 | `dev/images.js` | Generates the test images and their expected masks (section 2). Used by the unit tests, the end-to-end tests and the performance tests. Deterministic: the same seed gives the same picture every run. |
 | `dev/e2e.js` | The end-to-end checks, one function per use case, run inside the real app page. |
@@ -243,7 +243,7 @@ Each line is one test: id, what it checks, and what it covers. Files are named a
 
 ## 4. Checks
 
-- **C-1** `dev/check-deps.py` reads every import in `src/` and fails if `domain` imports anything outside `domain`, `ui` imports `infra`, `infra` imports `app` or `ui`, or anything but `main.js` imports `ui`. Covers NFR-37 and architecture section 1.
+- **C-1** `dev/check-deps.py` reads every import in `main.js` and the four layer folders and fails if `domain` imports anything outside `domain`, `ui` imports `infra`, `infra` imports `app` or `ui`, or anything but `main.js` imports `ui`. Covers NFR-37 and architecture section 1.
 - **C-2** the content security policy in `index.html` allows connections only to `'self'` and the two Open-Meteo addresses, and a `fetch` to `https://example.com` from the app page is blocked by the browser. Covers NFR-2, NFR-4, FR-95.
 - **C-3** the service worker: after the first load, every cache name starts with `awardrobe-`; a cache named `other-app-v1` created by the test survives activation; with the server stopped the app reloads and the Closet works. Covers NFR-5, NFR-34, NFR-35.
 - **C-4** after the whole run, every localStorage key starts with `awardrobe.`, and the only databases are `awardrobe` and the `wardrobe` seeded for E-7. Covers NFR-34.

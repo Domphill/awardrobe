@@ -1,6 +1,7 @@
 /* aWardrobe app: every garment, outfit and day record kept in memory after boot, written through
    the database, with change announcements so screens refresh. Pictures are not kept here; they are
    read on demand by app/pictures.js. */
+import { StorageError } from '../infra/db.js';
 
 const RECORD_STORES = ['garments', 'outfits', 'days'];
 const ALL_STORES = ['garments', 'outfits', 'days', 'pictures', 'meta', 'drafts'];
@@ -31,22 +32,48 @@ export function createRecords(db) {
       else maps[b.s].clear();
     }
   };
+  const readMeta = async () => {
+    const next = new Map();
+    for (const m of await db.getAll('meta')) next.set(m.key, m.value);
+    return next;
+  };
+  /* a test hook: the next write is refused, so the error path can be checked */
+  const guard = () => {
+    if (api.failNext) {
+      api.failNext = false;
+      throw new StorageError("Saving failed: the write was refused.", 'write');
+    }
+  };
 
   const api = {
     db,
+    failNext: false,
+    /* Reads everything first, then swaps it in, so a failed read leaves memory as it was. */
     async load() {
+      const next = {};
+      for (const s of RECORD_STORES) {
+        next[s] = new Map();
+        for (const rec of await db.getAll(s)) next[s].set(rec.id, rec);
+      }
+      const nextMeta = await readMeta();
       for (const s of RECORD_STORES) {
         maps[s].clear();
-        for (const rec of await db.getAll(s)) maps[s].set(rec.id, rec);
+        for (const [k, v] of next[s]) maps[s].set(k, v);
       }
       meta.clear();
-      for (const m of await db.getAll('meta')) meta.set(m.key, m.value);
+      for (const [k, v] of nextMeta) meta.set(k, v);
+    },
+    async reloadMeta() {
+      const nextMeta = await readMeta();
+      meta.clear();
+      for (const [k, v] of nextMeta) meta.set(k, v);
     },
     list: (s) => [...maps[s].values()].map(clone),
     get: (s, id) => (maps[s].has(id) ? clone(maps[s].get(id)) : null),
     has: (s, id) => maps[s].has(id),
     count: (s) => maps[s].size,
     async put(s, rec) {
+      guard();
       const copy = clone(rec);
       await db.put(s, copy);
       maps[s].set(copy.id, copy);
@@ -54,6 +81,7 @@ export function createRecords(db) {
       return clone(copy);
     },
     async remove(s, id) {
+      guard();
       await db.delete(s, id);
       maps[s].delete(id);
       emit({ store: s, id, kind: 'remove' });
@@ -61,6 +89,7 @@ export function createRecords(db) {
     /* Several writes that happen together or not at all. `fn(ops)` queues them; nothing touches
        memory until the database transaction has completed. */
     async tx(stores, fn) {
+      guard();
       const batch = [];
       const ops = {
         put: (s, rec) => batch.push({ op: 'put', s, rec: clone(rec) }),
@@ -80,6 +109,7 @@ export function createRecords(db) {
     },
     meta: (key, fallback) => (meta.has(key) ? clone(meta.get(key)) : fallback),
     async setMeta(key, value) {
+      guard();
       const v = clone(value);
       await db.put('meta', { key, value: v });
       meta.set(key, v);
@@ -90,6 +120,7 @@ export function createRecords(db) {
       return () => listeners.delete(fn);
     },
     async wipe() {
+      guard();
       await db.clear(ALL_STORES);
       for (const s of RECORD_STORES) maps[s].clear();
       meta.clear();

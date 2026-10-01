@@ -7,9 +7,11 @@ export function createPrefs(records) {
   let chain = Promise.resolve();
   const api = {
     get: () => Object.assign({}, DEFAULT_PREFS, records.meta('prefs', {})),
-    /* Changes are written one after another, so two quick taps cannot lose each other. */
+    /* Changes are written one after another, so two quick taps cannot lose each other, and the
+       stored settings are re-read first, so a change made in another tab is not overwritten. */
     set(patch) {
       const run = chain.then(async () => {
+        await records.reloadMeta();
         const next = Object.assign({}, records.meta('prefs', {}), patch);
         await records.setMeta('prefs', next);
         const now = api.get();

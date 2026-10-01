@@ -61,7 +61,16 @@ export function segmented({ name, value, options, onChange, label }) {
   }
   return el;
 }
-export const field = (label, control, hint) => h('label.field', h('span.label', label), control, hint ? h('span.hint', hint) : null);
+/* A labelled control. An input gets a real <label>; a group of buttons gets a heading it points
+   at, so tapping the heading does nothing and each button keeps its own name (NFR-22). */
+let fieldSeq = 0;
+export function field(label, control, hint) {
+  const isInput = control && /^(INPUT|TEXTAREA|SELECT)$/.test(control.tagName);
+  if (isInput) return h('label.field', h('span.label', label), control, hint ? h('span.hint', hint) : null);
+  const id = 'field-' + ++fieldSeq;
+  if (control && control.setAttribute) control.setAttribute('aria-labelledby', id);
+  return h('div.field', h('span.label', { id }, label), control, hint ? h('span.hint', hint) : null);
+}
 export const sectionHead = (title, right) => h('div.section-head', h('h2', title), right || null);
 export const card = (...kids) => h('div.card', ...kids);
 export const pageHead = (title, sub, right) => h('div.page-head', h('div', h('h1.title', title), sub ? h('p.sub', sub) : null), right || null);
@@ -69,7 +78,17 @@ export const empty = (title, body, ...actions) => h('div.empty', h('h2', title),
 
 /* ---------- sheets, confirmations, toasts, busy ---------- */
 const layer = () => document.getElementById('layer');
-export function sheet({ title, body, actions, onClose, wide }) {
+let openSheets = 0;
+const setInert = () => {
+  const main = document.getElementById('main');
+  const nav = document.querySelector('nav.tabs');
+  const top = document.querySelector('header.topbar');
+  for (const el of [main, nav, top]) if (el) el.inert = openSheets > 0;
+};
+/* A sheet from the bottom of the screen, as a dialog: focus moves in, Escape closes it, the page
+   behind is inert, and focus returns to where it was (NFR-22). */
+export function sheet({ title, body, actions, onClose, wide, opener }) {
+  opener = opener || document.activeElement;
   const wrap = h('div.sheet-wrap', { role: 'dialog', 'aria-modal': 'true', 'aria-label': title || 'Sheet' });
   let closed = false;
   const api = {
@@ -78,17 +97,37 @@ export function sheet({ title, body, actions, onClose, wide }) {
       if (closed) return;
       closed = true;
       wrap.remove();
+      openSheets = Math.max(0, openSheets - 1);
+      setInert();
+      if (opener && opener.isConnected && typeof opener.focus === 'function') opener.focus({ preventScroll: true });
       if (onClose) onClose(result);
     }
   };
-  const panel = h('div.sheet' + (wide ? '.wide' : ''), h('div.sheet-head', h('h2', title || ''), iconBtn('x', 'Close', () => api.close(null))), h('div.sheet-body', body), actions && actions.length ? h('div.sheet-actions', ...actions) : null);
+  const closeBtn = iconBtn('x', 'Close', () => api.close(null));
+  const panel = h('div.sheet' + (wide ? '.wide' : ''), h('div.sheet-head', h('h2', title || ''), closeBtn), h('div.sheet-body', body), actions && actions.length ? h('div.sheet-actions', ...actions) : null);
+  wrap.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      api.close(null);
+    }
+  });
   wrap.appendChild(h('div.sheet-backdrop', { onclick: () => api.close(null) }));
   wrap.appendChild(panel);
   layer().appendChild(wrap);
-  const focus = panel.querySelector('[data-autofocus], input, button.primary, button');
-  if (focus) setTimeout(() => focus.focus({ preventScroll: true }), 30);
+  openSheets++;
+  setInert();
+  const bodyEl = panel.querySelector('.sheet-body');
+  const focus = bodyEl.querySelector('[data-autofocus]') || bodyEl.querySelector('input, select, textarea, button, [tabindex]:not([tabindex="-1"])') || panel.querySelector('.sheet-actions button.primary, .sheet-actions button') || closeBtn;
+  setTimeout(() => focus.focus({ preventScroll: true }), 30);
   return api;
 }
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape' && openSheets > 0 && !(e.target && e.target.closest && e.target.closest('.sheet-wrap'))) {
+    const wraps = document.querySelectorAll('.sheet-wrap');
+    const last = wraps[wraps.length - 1];
+    if (last) last.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: false, cancelable: true }));
+  }
+});
 /* A yes-or-no sheet; with `typed`, the word must be typed before the button works (FR-108). */
 export function confirmSheet({ title, body, confirm, cancel, danger, typed }) {
   return new Promise((resolve) => {

@@ -1,7 +1,7 @@
 /* aWardrobe screen: More. Settings, privacy, storage, the error log, delete everything
    (FR-106 to FR-108, FR-111, FR-112, FR-115). Backup and weather cards arrive in later milestones. */
 import { h, btn, card, sectionHead, segmented, field, pageHead, confirmSheet, toast } from '../components.js';
-import { applyTheme } from '../shell.js';
+import { applyTheme, clearTheme } from '../shell.js';
 import { versionNumber } from '../../app/version.js';
 import { relativeDay } from '../format.js';
 import { todayKey } from '../../domain/model.js';
@@ -12,6 +12,12 @@ export const more = {
   name: 'more',
   render(root, arg, { app, router, shell }) {
     const prefs = app.prefs.get();
+    /* a setting that cannot be saved says so and shows the stored value again */
+    const save = (patch) =>
+      app.prefs.set(patch).catch((e) => {
+        toast("That couldn't be saved. " + ((e && e.message) || ''));
+        shell.refresh();
+      });
     root.appendChild(pageHead('More'));
 
     const lastBackup = app.records.meta('lastBackup', null);
@@ -34,12 +40,12 @@ export const more = {
     root.appendChild(
       card(
         sectionHead('Appearance'),
-        field('Theme', segmented({ name: 'theme', label: 'Theme', value: prefs.theme, options: [{ value: 'system', label: 'Auto' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }], onChange: async (v) => {
+        field('Theme', segmented({ name: 'theme', label: 'Theme', value: prefs.theme, options: [{ value: 'system', label: 'Auto' }, { value: 'light', label: 'Light' }, { value: 'dark', label: 'Dark' }], onChange: (v) => {
           applyTheme(v);
-          await app.prefs.set({ theme: v });
+          save({ theme: v });
         } })),
-        field('Currency', segmented({ name: 'currency', label: 'Currency', value: prefs.currency, options: ['£', '€', '$'].map((c) => ({ value: c, label: c })), onChange: (v) => app.prefs.set({ currency: v }) })),
-        field('Temperatures', segmented({ name: 'tempUnit', label: 'Temperature unit', value: prefs.tempUnit, options: [{ value: 'C', label: '°C' }, { value: 'F', label: '°F' }], onChange: (v) => app.prefs.set({ tempUnit: v }) }))
+        field('Currency', segmented({ name: 'currency', label: 'Currency', value: prefs.currency, options: ['£', '€', '$'].map((c) => ({ value: c, label: c })), onChange: (v) => save({ currency: v }) })),
+        field('Temperatures', segmented({ name: 'tempUnit', label: 'Temperature unit', value: prefs.tempUnit, options: [{ value: 'C', label: '°C' }, { value: 'F', label: '°F' }], onChange: (v) => save({ tempUnit: v }) }))
       )
     );
 
@@ -70,7 +76,13 @@ export const more = {
         btn('Delete everything', async () => {
           const ok = await confirmSheet({ title: 'Delete your whole wardrobe?', body: 'Every garment, photo, outfit and calendar day on this device. Take a backup first if there is any doubt.', confirm: 'Delete everything', danger: true, typed: 'DELETE' });
           if (!ok) return;
-          await app.records.wipe();
+          try {
+            await app.records.wipe();
+          } catch (e) {
+            toast("That couldn't be done. " + ((e && e.message) || ''));
+            return;
+          }
+          clearTheme();
           shell.onboardedThisSession = true;
           toast('Everything has been deleted.');
           router.go('closet', null, { replace: true });
