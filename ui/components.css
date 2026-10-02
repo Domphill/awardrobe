@@ -387,3 +387,229 @@
   color: var(--graphite);
   word-break: break-word;
 }
+
+/* ---------- chips, search, selects, checks ---------- */
+.chips {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px 0 6px;
+  scrollbar-width: none;
+}
+.chips::-webkit-scrollbar {
+  display: none;
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: var(--tap);
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--rule);
+  background: var(--raise);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 14.5px;
+  white-space: nowrap;
+  flex: none;
+}
+.chip[aria-pressed='true'] {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--paper);
+}
+.chip-count {
+  font-weight: 500;
+  color: var(--graphite);
+  font-size: 13px;
+}
+.chip[aria-pressed='true'] .chip-count {
+  color: inherit;
+  opacity: 0.8;
+}
+.toggle-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.search-wrap > .icon {
+  position: absolute;
+  left: 14px;
+  color: var(--graphite);
+  pointer-events: none;
+}
+.search-wrap .input {
+  padding-left: 44px;
+  padding-right: 48px;
+  border-radius: var(--radius-pill);
+  min-height: 48px;
+}
+.search-wrap .input::-webkit-search-cancel-button {
+  display: none;
+}
+.search-wrap .icon-btn {
+  position: absolute;
+  right: 2px;
+  border: 0;
+  background: none;
+}
+select.input {
+  appearance: none;
+  -webkit-appearance: none;
+  padding-right: 36px;
+}
+textarea.input {
+  min-height: 88px;
+  resize: vertical;
+}
+.check {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: var(--tap);
+  font-weight: 600;
+}
+.check input {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--ink);
+}
+.problems {
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--danger);
+  background: var(--raise);
+  padding: 10px 14px;
+  color: var(--danger);
+  font-weight: 600;
+}
+.problems ul {
+  display: grid;
+  gap: 4px;
+}
+.page-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.page-top .title {
+  flex: 1;
+}
+.plain-list {
+  display: grid;
+  gap: 6px;
+}
+
+/* ---------- picture cards and colour chips ---------- */
+.item-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px 10px;
+}
+.card-item {
+  display: grid;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--ink);
+  text-align: center;
+  position: relative;
+  align-content: start;
+}
+.thumb {
+  display: block;
+  max-width: 100%;
+}
+.card-item .thumb {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 5 / 6;
+  border-radius: var(--radius-sm);
+}
+.card-name {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+.fav-mark {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--tape);
+  color: var(--tape-ink);
+}
+.fav-mark .icon {
+  width: 13px;
+  height: 13px;
+  fill: currentColor;
+}
+.colour-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.colour-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap);
+  padding: 4px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--rule);
+  background: var(--raise);
+  font-weight: 600;
+  font-size: 14.5px;
+}
+.swatch-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px solid var(--rule);
+  flex: none;
+}
+.colour-chip .icon-btn {
+  border: 0;
+  background: none;
+  width: var(--tap);
+  height: var(--tap);
+  margin: -4px -6px -4px -4px;
+}
+.swatch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  gap: 8px;
+}
+.swatch {
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  padding: 8px 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--rule);
+  background: var(--raise);
+  color: var(--ink);
+  font-size: 12.5px;
+  font-weight: 600;
+  min-height: var(--tap);
+}
+.swatch .swatch-dot {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+}
+.icon-btn[aria-pressed='true'] .icon {
+  fill: currentColor;
+}

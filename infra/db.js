@@ -117,7 +117,8 @@ class Db {
             abort(e);
           }
         },
-        get: (s, key) => req(t.objectStore(s).get(key))
+        get: (s, key) => req(t.objectStore(s).get(key)),
+        abort: (e) => abort(e || new Error('the write was abandoned'))
       };
       t.oncomplete = () => resolve();
       t.onabort = () => reject(failed || wrap(t.error || new Error('the write was abandoned')));
@@ -149,7 +150,10 @@ export function memoryDb() {
     },
     delete: (s, key) => data[s].delete(key),
     clear: (s) => data[s].clear(),
-    get: async (s, key) => structuredClone(data[s].get(key))
+    get: async (s, key) => structuredClone(data[s].get(key)),
+    abort: (e) => {
+      throw e || new Error('the write was abandoned');
+    }
   };
   return {
     name: 'memory',

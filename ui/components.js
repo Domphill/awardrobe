@@ -162,3 +162,103 @@ export function busy(message) {
   layer().appendChild(el);
   return { close: () => el.remove(), text: (t) => (label.textContent = t) };
 }
+
+/* ---------- chips, selects, pictures, keyed lists ---------- */
+export function chip(label, opts) {
+  opts = opts || {};
+  return h('button.chip', { type: 'button', 'aria-pressed': opts.pressed === undefined ? null : String(!!opts.pressed), dataset: opts.data, onclick: opts.onClick }, h('span', label), opts.count !== undefined ? h('span.chip-count', String(opts.count)) : null);
+}
+export function selectEl(options, value, onChange, attrs) {
+  const el = h('select.input', Object.assign({ onchange: () => onChange(el.value) }, attrs || {}));
+  for (const o of options) el.appendChild(h('option', { value: o.value, selected: o.value === value }, o.label));
+  return el;
+}
+/* several chips that can each be on or off: seasons, occasions */
+export function toggleChips({ name, values, selected, onChange, label }) {
+  const el = h('div.toggle-chips', { role: 'group', 'aria-label': label || name, dataset: { field: name } });
+  const set = new Set(selected || []);
+  for (const v of values) {
+    const b = h('button.chip', { type: 'button', dataset: { value: v }, 'aria-pressed': String(set.has(v)), onclick: () => {
+      if (set.has(v)) set.delete(v);
+      else set.add(v);
+      b.setAttribute('aria-pressed', String(set.has(v)));
+      onChange(values.filter((x) => set.has(x)));
+    } }, v);
+    el.appendChild(b);
+  }
+  return el;
+}
+/* A picture drawn into a canvas when it scrolls into view. `load()` resolves to anything
+   drawImage accepts (the pictures cache gives a canvas). Marks data-drawn when done. */
+let lazyObserver = null;
+const lazyJobs = new WeakMap();
+function observer() {
+  if (lazyObserver) return lazyObserver;
+  lazyObserver = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (!e.isIntersecting) continue;
+        const job = lazyJobs.get(e.target);
+        lazyObserver.unobserve(e.target);
+        lazyJobs.delete(e.target);
+        if (job) job();
+      }
+    },
+    { rootMargin: '240px' }
+  );
+  return lazyObserver;
+}
+export function pic(load, opts) {
+  opts = opts || {};
+  const c = h('canvas.thumb', { width: String(opts.w || 300), height: String(opts.h || 360), role: 'img', 'aria-label': opts.alt || '' });
+  const draw = async () => {
+    try {
+      const img = await load();
+      if (!img) return;
+      let W = c.width;
+      let H = c.height;
+      if (opts.natural) {
+        const k = Math.min(1, 1200 / Math.max(img.width, img.height));
+        W = Math.max(1, Math.round(img.width * k));
+        H = Math.max(1, Math.round(img.height * k));
+        c.width = W;
+        c.height = H;
+      }
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, W, H);
+      const k = Math.min(W / img.width, H / img.height);
+      const w = img.width * k;
+      const hh = img.height * k;
+      ctx.drawImage(img, (W - w) / 2, (H - hh) / 2, w, hh);
+      c.dataset.drawn = '1';
+    } catch (e) {
+      c.dataset.failed = '1';
+    }
+  };
+  if (opts.eager || typeof IntersectionObserver !== 'function') draw();
+  else {
+    lazyJobs.set(c, draw);
+    observer().observe(c);
+  }
+  return c;
+}
+/* Keeps a container's children in step with a list by key, reusing the elements that are
+   already there, so pictures stay drawn and nothing flickers. */
+export function patchList(container, items, keyOf, make) {
+  const existing = new Map();
+  for (const el of Array.from(container.children)) existing.set(el.dataset.key, el);
+  const keep = new Set();
+  let cursor = container.firstChild;
+  for (const item of items) {
+    const key = String(keyOf(item));
+    keep.add(key);
+    let el = existing.get(key);
+    if (!el) {
+      el = make(item);
+      el.dataset.key = key;
+    }
+    if (el === cursor) cursor = cursor.nextSibling;
+    else container.insertBefore(el, cursor);
+  }
+  for (const [key, el] of existing) if (!keep.has(key)) el.remove();
+}

@@ -48,6 +48,7 @@ export function createRecords(db) {
   const api = {
     db,
     failNext: false,
+    abortNextTx: false,
     /* Reads everything first, then swaps it in, so a failed read leaves memory as it was. */
     async load() {
       const next = {};
@@ -102,6 +103,11 @@ export function createRecords(db) {
           if (b.op === 'put') dbops.put(b.s, b.rec);
           else if (b.op === 'delete') dbops.delete(b.s, b.key);
           else dbops.clear(b.s);
+        }
+        /* a test hook: the transaction is abandoned after its writes were queued */
+        if (api.abortNextTx) {
+          api.abortNextTx = false;
+          dbops.abort(new StorageError('The save was interrupted before it finished.', 'aborted'));
         }
       });
       for (const b of batch) applyToMemory(b);

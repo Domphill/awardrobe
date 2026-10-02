@@ -50,7 +50,7 @@ export function createShell({ mount, app, router, screens }) {
   mount.appendChild(h('div#layer'));
   mount.appendChild(h('div#toasts', { 'aria-live': 'polite' }));
 
-  const shell = { el: frame, main, current: null, onboardedThisSession: false, throwOnce: null, throwAlways: null, errored: false, renders: 0 };
+  const shell = { el: frame, main, current: null, onboardedThisSession: false, throwOnce: null, throwAlways: null, errored: false, renders: 0, pickPhoto: null, editor: null, onLeave: null, onHide: null };
 
   for (const t of TABS) {
     if (t.add) {
@@ -102,6 +102,16 @@ export function createShell({ mount, app, router, screens }) {
       screen = screens.closet;
     }
     const y = window.scrollY;
+    /* a screen with unfinished work gets a word before another screen replaces it */
+    if (shell.current && shell.current !== name && typeof shell.onLeave === 'function') {
+      const leaving = shell.onLeave;
+      shell.onLeave = null;
+      try {
+        leaving(name);
+      } catch (e) {
+        console.error(e);
+      }
+    }
     clear(main);
     frame.classList.toggle('bare', name === 'welcome');
     const box = h('div.screen.screen-' + name);

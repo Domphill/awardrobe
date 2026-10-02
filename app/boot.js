@@ -6,6 +6,11 @@ import { env } from '../infra/platform.js';
 import { createRecords } from './records.js';
 import { createPrefs } from './prefs.js';
 import { VERSION } from './version.js';
+import { createImageWorker } from '../infra/worker-client.js';
+import { todayKey as dayOf } from '../domain/model.js';
+import { createPictures } from './pictures.js';
+import { createDrafts } from './drafts.js';
+import { createGarments } from './garments.js';
 
 const MAX_ERRORS = 20;
 const OPEN_TIMEOUT = 8000;
@@ -91,7 +96,9 @@ export async function createApp(opts) {
   }
   const prefs = createPrefs(records);
   const errors = createErrorLog(records);
-  return {
+  let frozen = null;
+  let imageWorker = null;
+  const app = {
     db,
     records,
     prefs,
@@ -100,12 +107,31 @@ export async function createApp(opts) {
     env,
     storage: { estimate, persist },
     version: VERSION,
+    /* "now", which the tests can freeze */
+    now: () => (frozen ? new Date(frozen.getTime()) : new Date()),
+    setNow(d) {
+      frozen = d ? new Date(d) : null;
+    },
+    todayKey: () => dayOf(app.now()),
+    /* the image worker, started the first time it is needed and shared by every screen */
+    images() {
+      if (!imageWorker) imageWorker = createImageWorker();
+      return imageWorker;
+    },
     close() {
       try {
         db.close();
       } catch (e) {
         /* already closed */
       }
+      if (imageWorker) {
+        imageWorker.terminate();
+        imageWorker = null;
+      }
     }
   };
+  app.pictures = createPictures(records);
+  app.drafts = createDrafts(records);
+  app.garments = createGarments(app);
+  return app;
 }
