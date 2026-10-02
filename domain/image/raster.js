@@ -60,6 +60,27 @@ export function resize(rgba, w, h, nw, nh) {
   return out;
 }
 
+/* One byte per pixel, averaged when shrinking (for soft alpha), nearest when growing. */
+export function resizeGray(bytes, w, h, nw, nh) {
+  const out = new Uint8Array(nw * nh);
+  for (let y = 0; y < nh; y++) {
+    const sy0 = Math.floor((y * h) / nh);
+    const sy1 = Math.max(sy0 + 1, Math.floor(((y + 1) * h) / nh));
+    for (let x = 0; x < nw; x++) {
+      const sx0 = Math.floor((x * w) / nw);
+      const sx1 = Math.max(sx0 + 1, Math.floor(((x + 1) * w) / nw));
+      let sum = 0;
+      let n = 0;
+      for (let sy = sy0; sy < sy1; sy++) for (let sx = sx0; sx < sx1; sx++) {
+        sum += bytes[sy * w + sx];
+        n++;
+      }
+      out[y * nw + x] = Math.round(sum / n);
+    }
+  }
+  return out;
+}
+
 export function resizeMask(mask, w, h, nw, nh) {
   const out = new Uint8Array(nw * nh);
   for (let y = 0; y < nh; y++) {

@@ -35,8 +35,23 @@ const FILES = [
   'app/prefs.js',
   'app/version.js',
   'domain/model.js',
+  'domain/crc32.js',
+  'domain/colour/space.js',
+  'domain/colour/naming.js',
+  'domain/colour/palette.js',
+  'domain/image/mask.js',
+  'domain/image/skin.js',
+  'domain/image/segment.js',
+  'domain/image/edges.js',
+  'domain/image/raster.js',
+  'domain/image/png.js',
+  'domain/image/shape.js',
   'infra/db.js',
-  'infra/platform.js'
+  'infra/platform.js',
+  'infra/image-pipeline.js',
+  'infra/image-worker.js',
+  'infra/worker-client.js',
+  'infra/decode.js'
 ];
 
 /* A new version waits until the app asks for it (the Reload button), so a running page never
