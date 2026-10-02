@@ -60,6 +60,59 @@ export function resize(rgba, w, h, nw, nh) {
   return out;
 }
 
+/* Shrinks a colour layer and its alpha together, weighting each pixel's colour by its alpha, so
+   a soft edge keeps the garment's colour instead of mixing in what lay under the transparent
+   pixels. Returns { rgba, alpha }. */
+export function resizeWithAlpha(rgba, alpha, w, h, nw, nh) {
+  const outRgba = new Uint8ClampedArray(nw * nh * 4);
+  const outAlpha = new Uint8Array(nw * nh);
+  for (let y = 0; y < nh; y++) {
+    const sy0 = Math.floor((y * h) / nh);
+    const sy1 = Math.max(sy0 + 1, Math.floor(((y + 1) * h) / nh));
+    for (let x = 0; x < nw; x++) {
+      const sx0 = Math.floor((x * w) / nw);
+      const sx1 = Math.max(sx0 + 1, Math.floor(((x + 1) * w) / nw));
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let wa = 0;
+      let asum = 0;
+      let n = 0;
+      let pr = 0;
+      let pg = 0;
+      let pb = 0;
+      for (let sy = sy0; sy < sy1; sy++) {
+        for (let sx = sx0; sx < sx1; sx++) {
+          const p = sy * w + sx;
+          const a = alpha[p];
+          r += rgba[p * 4] * a;
+          g += rgba[p * 4 + 1] * a;
+          b += rgba[p * 4 + 2] * a;
+          wa += a;
+          asum += a;
+          pr += rgba[p * 4];
+          pg += rgba[p * 4 + 1];
+          pb += rgba[p * 4 + 2];
+          n++;
+        }
+      }
+      const o = (y * nw + x) * 4;
+      if (wa > 0) {
+        outRgba[o] = r / wa;
+        outRgba[o + 1] = g / wa;
+        outRgba[o + 2] = b / wa;
+      } else {
+        outRgba[o] = pr / n;
+        outRgba[o + 1] = pg / n;
+        outRgba[o + 2] = pb / n;
+      }
+      outRgba[o + 3] = 255;
+      outAlpha[y * nw + x] = Math.round(asum / n);
+    }
+  }
+  return { rgba: outRgba, alpha: outAlpha };
+}
+
 /* One byte per pixel, averaged when shrinking (for soft alpha), nearest when growing. */
 export function resizeGray(bytes, w, h, nw, nh) {
   const out = new Uint8Array(nw * nh);

@@ -6,13 +6,16 @@ import { nameColour } from './naming.js';
 
 /* Gains that make the background grey, one per channel, when the background is near neutral.
    A coloured background (a red sheet) gives no correction. */
+const inHue = (h, a, b) => h >= a && h <= b;
 export function whiteBalanceGains(bg) {
   if (!bg) return [1, 1, 1];
   const bl = toLinear(bg[0], bg[1], bg[2]);
-  const { L, C } = lch(linearToLab(bl[0], bl[1], bl[2]));
-  /* near neutral: a sheet, a wall or a floor under a coloured bulb has chroma under about 0.08;
-     a coloured sheet is well above it */
-  if (C >= 0.08 || L <= 0.45) return [1, 1, 1];
+  const { L, C, h } = lch(linearToLab(bl[0], bl[1], bl[2]));
+  /* near neutral and tinted the way light tints: a warm bulb (yellow to orange) or a cool window
+     (blue). A sage or pink wall is a colour, not a cast, and a light blue sheet is too strong. A
+     cream wall in daylight cannot be told from a white sheet under a bulb by colour alone. */
+  if (C >= 0.06 || L <= 0.45) return [1, 1, 1];
+  if (C >= 0.012 && !(inHue(h, 55, 115) || inHue(h, 235, 295))) return [1, 1, 1];
   const avg = (bl[0] + bl[1] + bl[2]) / 3;
   return bl.map((c) => Math.min(2, Math.max(0.5, avg / Math.max(c, 0.001))));
 }

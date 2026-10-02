@@ -44,32 +44,35 @@ export function floodByColour(rgba, w, h, mask, x, y, tolerance, from, to) {
   const i0 = start * 4;
   return growFrom(rgba, w, h, mask, [start], rgba[i0], rgba[i0 + 1], rgba[i0 + 2], toleranceThreshold(tolerance), from, to);
 }
-export function growFrom(rgba, w, h, mask, seeds, r, g, b, threshold, from, to) {
-  const seen = new Uint8Array(w * h);
+/* `seen` and `stamp` let a caller reuse one visited-marker array across many fills. */
+export function growFrom(rgba, w, h, mask, seeds, r, g, b, threshold, from, to, seen, stamp) {
+  if (!seen) {
+    seen = new Uint8Array(w * h);
+    stamp = 1;
+  }
   const stack = [];
   for (const p of seeds) {
-    if (mask[p] === from && !seen[p] && colourDistance(rgba, p * 4, r, g, b) <= threshold) {
-      seen[p] = 1;
+    if (mask[p] === from && seen[p] !== stamp && colourDistance(rgba, p * 4, r, g, b) <= threshold) {
+      seen[p] = stamp;
       stack.push(p);
     }
   }
   let changed = 0;
+  const visit = (q) => {
+    if (seen[q] === stamp || mask[q] !== from) return;
+    seen[q] = stamp;
+    if (colourDistance(rgba, q * 4, r, g, b) <= threshold) stack.push(q);
+  };
   while (stack.length) {
     const p = stack.pop();
     mask[p] = to;
     changed++;
     const x = p % w;
     const y = (p - x) / w;
-    const next = [];
-    if (x > 0) next.push(p - 1);
-    if (x < w - 1) next.push(p + 1);
-    if (y > 0) next.push(p - w);
-    if (y < h - 1) next.push(p + w);
-    for (const q of next) {
-      if (seen[q] || mask[q] !== from) continue;
-      seen[q] = 1;
-      if (colourDistance(rgba, q * 4, r, g, b) <= threshold) stack.push(q);
-    }
+    if (x > 0) visit(p - 1);
+    if (x < w - 1) visit(p + 1);
+    if (y > 0) visit(p - w);
+    if (y < h - 1) visit(p + w);
   }
   return changed;
 }
@@ -255,6 +258,14 @@ export function smartSelect(rgba, w, h, kept, sel, cx, cy, reach, tolerance) {
   const stack = [start];
   seen[start] = 1;
   let n = 0;
+  const visit = (q) => {
+    if (seen[q] || kept[q] <= 127) return;
+    seen[q] = 1;
+    const qx = q % w;
+    const qy = (q - qx) / w;
+    if ((qx - cx) * (qx - cx) + (qy - cy) * (qy - cy) > r2) return;
+    if (colourDistance(rgba, q * 4, r, g, b) <= th) stack.push(q);
+  };
   while (stack.length) {
     const p = stack.pop();
     if (sel[p] !== 255) {
@@ -263,19 +274,10 @@ export function smartSelect(rgba, w, h, kept, sel, cx, cy, reach, tolerance) {
     }
     const px = p % w;
     const py = (p - px) / w;
-    const next = [];
-    if (px > 0) next.push(p - 1);
-    if (px < w - 1) next.push(p + 1);
-    if (py > 0) next.push(p - w);
-    if (py < h - 1) next.push(p + w);
-    for (const q of next) {
-      if (seen[q] || kept[q] <= 127) continue;
-      seen[q] = 1;
-      const qx = q % w;
-      const qy = (q - qx) / w;
-      if ((qx - cx) * (qx - cx) + (qy - cy) * (qy - cy) > r2) continue;
-      if (colourDistance(rgba, q * 4, r, g, b) <= th) stack.push(q);
-    }
+    if (px > 0) visit(p - 1);
+    if (px < w - 1) visit(p + 1);
+    if (py > 0) visit(p - w);
+    if (py < h - 1) visit(p + w);
   }
   return n;
 }

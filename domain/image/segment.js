@@ -21,6 +21,12 @@ const LOW_CONTRAST = 0.08;
 const SHADOW_LEVELS = [0.85, 0.72];
 const SHADOW_PENALTY = 0.05;
 const L_WEIGHT = 0.6;
+const MIN_SHADE_SHARE = 0.01;
+const LOPSIDED_EDGE = 0.8;
+const LOPSIDED_CENTRE = 0.1;
+const LIGHTER_STEP = 0.12;
+const WHOLE_PHOTO_MIN = 0.002;
+const WHOLE_PHOTO_MAX = 0.97;
 
 /* OKLab of one pixel, written into out[o..o+2] without allocating */
 function labInto(d, i, out, o) {
@@ -44,6 +50,16 @@ const dist2 = (lab, p, c) => {
 const cdist = (a, b) => {
   const dl = (a[0] - b[0]) * L_WEIGHT;
   return Math.sqrt(dl * dl + (a[1] - b[1]) * (a[1] - b[1]) + (a[2] - b[2]) * (a[2] - b[2]));
+};
+/* how far a garment shade sits from a background shade: lightness counts less when the garment
+   is the darker of the two (it could be a shadow), in full when it is the lighter */
+const sepDist = (fgC, bgC) => (fgC[0] > bgC[0] ? Math.hypot(fgC[0] - bgC[0], fgC[1] - bgC[1], fgC[2] - bgC[2]) : cdist(fgC, bgC));
+/* plain distance, lightness counted in full: for deciding what stands out from the background */
+const dist2Plain = (lab, p, c) => {
+  const dl = lab[p * 3] - c[0];
+  const da = lab[p * 3 + 1] - c[1];
+  const db = lab[p * 3 + 2] - c[2];
+  return dl * dl + da * da + db * db;
 };
 
 /* a smaller copy of the picture, by averaging blocks, with OKLab per pixel */
@@ -164,6 +180,26 @@ const nearest = (lab, p, centres) => {
   }
   return Math.sqrt(best);
 };
+const nearestPlain = (lab, p, centres) => {
+  let best = Infinity;
+  for (const c of centres) {
+    const d = dist2Plain(lab, p, c);
+    if (d < best) best = d;
+  }
+  return Math.sqrt(best);
+};
+const nearestIndex = (lab, p, centres) => {
+  let bi = 0;
+  let bd = Infinity;
+  for (let c = 0; c < centres.length; c++) {
+    const dd = dist2(lab, p, centres[c]);
+    if (dd < bd) {
+      bd = dd;
+      bi = c;
+    }
+  }
+  return bi;
+};
 
 /* The background's shades, from the band round the edges (FR-24). */
 export function backgroundModel(img) {
@@ -176,28 +212,39 @@ function modelFrom(a) {
   const idx = [];
   for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) if (x < band || y < band || x >= w - band || y >= h - band) idx.push(y * w + x);
   const km = kmeans(lab, idx, 6, 8);
-  /* the dominant shade's colour in sRGB: the average of the band pixels nearest to it */
+  /* a shade with almost no pixels is the mixed rim where something meets the background (a hem
+     on the edge of the photo), not a shade of the background: leave it out */
+  const total = km.weights.reduce((s, x) => s + x, 0);
+  const centres = [];
+  const weights = [];
+  for (let i = 0; i < km.centres.length; i++) {
+    if (km.weights[i] < total * MIN_SHADE_SHARE) continue;
+    centres.push(km.centres[i]);
+    weights.push(km.weights[i]);
+  }
+  /* which edges each shade sits on, and the dominant shade's colour in sRGB */
+  const edges = centres.map(() => [0, 0, 0, 0]);
   let top = 0;
-  for (let i = 1; i < km.weights.length; i++) if (km.weights[i] > km.weights[top]) top = i;
+  for (let i = 1; i < weights.length; i++) if (weights[i] > weights[top]) top = i;
   const sum = [0, 0, 0];
   let n = 0;
   for (const p of idx) {
-    let bi = 0;
-    let bd = Infinity;
-    for (let c = 0; c < km.centres.length; c++) {
-      const dd = dist2(lab, p, km.centres[c]);
-      if (dd < bd) {
-        bd = dd;
-        bi = c;
-      }
-    }
+    const bi = nearestIndex(lab, p, centres);
+    const x = p % w;
+    const y = (p - x) / w;
+    const e = y < band ? 0 : y >= h - band ? 1 : x < band ? 2 : 3;
+    edges[bi][e]++;
     if (bi !== top) continue;
     sum[0] += rgb[p * 4];
     sum[1] += rgb[p * 4 + 1];
     sum[2] += rgb[p * 4 + 2];
     n++;
   }
-  return { centres: km.centres, weights: km.weights, dominantRgb: n ? sum.map((v) => Math.round(v / n)) : [128, 128, 128] };
+  const edgeShare = edges.map((e) => {
+    const t = e[0] + e[1] + e[2] + e[3];
+    return t ? Math.max(...e) / t : 0;
+  });
+  return { centres, weights, edgeShare, dominantRgb: n ? sum.map((v) => Math.round(v / n)) : [128, 128, 128] };
 }
 
 export const leanFor = (strength) => {
@@ -212,21 +259,40 @@ export function segment(img, opts) {
   const a = reduced(img, ANALYSIS_SIDE);
   const { w, h, lab } = a;
   const bg = modelFrom(a);
-  const bgLit = bg.centres;
-  /* the garment: middle pixels that are not any background shade; a second, finer tier catches
-     a garment that is only a little different from its background */
   const cIdx = [];
   for (let y = Math.floor(h * CENTRE_FROM); y < h * CENTRE_TO; y++) for (let x = Math.floor(w * CENTRE_FROM); x < w * CENTRE_TO; x++) cIdx.push(y * w + x);
-  const dists = new Float32Array(cIdx.length);
-  for (let j = 0; j < cIdx.length; j++) dists[j] = nearest(lab, cIdx[j], bgLit);
+  /* a shade seen on one edge only that also fills much of the middle is the garment reaching
+     the edge of the photo (a hem on the bottom edge), not the background: drop it */
+  const centreShare = bg.centres.map(() => 0);
+  for (const p of cIdx) centreShare[nearestIndex(lab, p, bg.centres)]++;
+  let bgLit = bg.centres.filter((c, i) => !(bg.edgeShare[i] >= LOPSIDED_EDGE && centreShare[i] / cIdx.length >= LOPSIDED_CENTRE));
+  if (!bgLit.length) bgLit = bg.centres;
+  /* the garment: middle pixels that are not any background shade. Lightness counts less, so a
+     shadow on the sheet does not pass as garment; but a pixel clearly lighter than every
+     background shade cannot be a shadow of it, so it counts as clearly different (a white shirt
+     on a light grey sheet). A second, finer tier catches a garment that is only a little
+     different from its background. For the warning, the same two bands are counted with
+     lightness in full, because a pale shirt differs from a pale wall mostly in lightness. */
+  const maxBgL = Math.max(...bgLit.map((c) => c[0]));
+  const picked = [[], []];
+  let clear = 0;
+  let faint = 0;
+  for (let j = 0; j < cIdx.length; j++) {
+    const p = cIdx[j];
+    const d = nearest(lab, p, bgLit);
+    const isClear = d > FG_TIERS[0] || lab[p * 3] - maxBgL > LIGHTER_STEP;
+    if (isClear) picked[0].push(p);
+    if (isClear || d > FG_TIERS[1]) picked[1].push(p);
+    const dp = nearestPlain(lab, p, bgLit);
+    if (dp > FG_TIERS[0]) clear++;
+    else if (dp > FG_TIERS[1]) faint++;
+  }
   let fgIdx = null;
   let tier = -1;
   const need = Math.max(40, w * h * 0.004);
-  for (let t = 0; t < FG_TIERS.length; t++) {
-    const picked = [];
-    for (let j = 0; j < cIdx.length; j++) if (dists[j] > FG_TIERS[t]) picked.push(cIdx[j]);
-    if (picked.length >= need) {
-      fgIdx = picked;
+  for (let t = 0; t < picked.length; t++) {
+    if (picked[t].length >= need) {
+      fgIdx = picked[t];
       tier = t;
       break;
     }
@@ -234,7 +300,7 @@ export function segment(img, opts) {
   if (!fgIdx) return null;
   const fg = kmeans(lab, fgIdx, 5, 8);
   /* confidence: how far the garment's shades sit from the background's, share-weighted median */
-  const seps = fg.centres.map((c, i) => ({ d: Math.min(...bgLit.map((b) => cdist(c, b))), w: fg.weights[i] })).sort((p, q) => p.d - q.d);
+  const seps = fg.centres.map((c, i) => ({ d: Math.min(...bgLit.map((b) => sepDist(c, b))), w: fg.weights[i] })).sort((p, q) => p.d - q.d);
   const half = seps.reduce((s, x) => s + x.w, 0) / 2;
   let acc = 0;
   let separation = seps[seps.length - 1].d;
@@ -245,7 +311,9 @@ export function segment(img, opts) {
       break;
     }
   }
-  const lowContrast = tier > 0 || separation < LOW_CONTRAST;
+  /* low contrast: the finer tier was needed, the garment's shades sit close to the background's,
+     or the faint population (a pale shirt) outnumbers the clear one (its dark print) */
+  const lowContrast = tier > 0 || separation < LOW_CONTRAST || faint > clear;
   /* background shades plus their shadows, which cost a penalty so a garment of the same colour
      as a shadow still wins when the garment model knows it */
   const bgAll = [];
@@ -298,7 +366,8 @@ export function segment(img, opts) {
   if (cl) upsampleScore(score, cw, ch, mask, img.width, img.height);
   else for (let p = 0; p < mask.length; p++) mask[p] = score[p] > 0 ? 255 : 0;
   tidy(mask, img.width, img.height);
-  return { mask, coverage: coverage(mask), lowContrast, separation, bg: bg.dominantRgb, bgCentres: bgLit, fgCentres: fg.centres, method: 'seg-2' };
+  const diag = { tier, clear, faint, centre: cIdx.length, shades: bg.centres.length, dropped: bg.centres.length - bgLit.length, bands: bg.centres.map((c, i) => [+bg.edgeShare[i].toFixed(2), +(centreShare[i] / cIdx.length).toFixed(2), +c[0].toFixed(3)]) };
+  return { mask, coverage: coverage(mask), lowContrast, separation, bg: bg.dominantRgb, bgCentres: bgLit, fgCentres: fg.centres, method: 'seg-2', diag };
 }
 
 /* bilinear upsampling of the soft score, thresholded at 0 */
@@ -325,7 +394,6 @@ function tidy(mask, w, h) {
   smooth(mask, w, h);
   dropSpecks(mask, w, h, 0.003);
   fillHoles(mask, w, h, 0.04);
-  dropSpecks(mask, w, h, 0.01);
 }
 
 /* The simpler method: everything joined to the edge that matches the edge's colour goes. */
@@ -349,10 +417,12 @@ export function floodCutout(img, strength) {
   }
   const med = (a) => a.sort((p, q) => p - q)[Math.floor(a.length / 2)];
   const th = toleranceThreshold(strength === undefined ? 50 : strength);
-  growFrom(d, W, H, mask, seeds, med(rs), med(gs), med(bs), th, 255, 0);
+  const seen = new Uint32Array(W * H);
+  growFrom(d, W, H, mask, seeds, med(rs), med(gs), med(bs), th, 255, 0, seen, 1);
   /* a second pass from every edge pixel still kept, against its own colour, for an edge that is
-     a different shade along one side */
-  for (const p of seeds) if (mask[p]) growFrom(d, W, H, mask, [p], d[p * 4], d[p * 4 + 1], d[p * 4 + 2], Math.max(6, th - 36), 255, 0);
+     a different shade along one side; one visited-marker array, stamped per seed */
+  let stamp = 2;
+  for (const p of seeds) if (mask[p]) growFrom(d, W, H, mask, [p], d[p * 4], d[p * 4 + 1], d[p * 4 + 2], Math.max(6, th - 36), 255, 0, seen, stamp++);
   tidy(mask, W, H);
   return { mask, coverage: coverage(mask), method: 'flood', lowContrast: false, separation: null, bg: [med(rs), med(gs), med(bs)] };
 }
@@ -364,8 +434,8 @@ export function autoCutout(img, opts) {
   const strength = opts.strength === undefined ? 50 : opts.strength;
   let r = segment(img, { strength });
   if (!r) r = floodCutout(img, strength);
-  if (r.coverage < 0.005 || r.coverage > 0.97) {
-    return { mask: null, method: 'photo', wholePhoto: true, coverage: r.coverage, lowContrast: r.lowContrast, separation: r.separation, bg: r.bg };
+  if (r.coverage < WHOLE_PHOTO_MIN || r.coverage > WHOLE_PHOTO_MAX) {
+    return { mask: null, method: 'photo', wholePhoto: true, coverage: r.coverage, lowContrast: r.lowContrast, separation: r.separation, bg: r.bg, diag: r.diag };
   }
   return Object.assign({ wholePhoto: false }, r);
 }

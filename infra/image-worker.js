@@ -7,6 +7,8 @@ import { shapeFeatures } from '../domain/image/shape.js';
 
 const handlers = {
   ping: async () => ({ result: { ok: true } }),
+  /* never answers: lets the client's time limit be tested */
+  hang: () => new Promise(() => {}),
   open: async ({ file, workSide, originalSide }) => {
     const d = await decodeFile(file, { workSide, originalSide });
     return { result: { rgba: d.work.data, width: d.width, height: d.height, original: d.original, originalWidth: d.originalWidth, originalHeight: d.originalHeight, decodedIn: 'worker' }, transfer: [d.work.data.buffer] };

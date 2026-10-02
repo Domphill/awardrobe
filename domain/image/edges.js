@@ -41,33 +41,41 @@ export function feather(mask, w, h) {
 }
 
 /* Gives every pixel that is not fully opaque, within `passes` pixels of the opaque region, the
-   average colour of its opaque neighbours, working outwards one ring per pass. */
+   average colour of its already-coloured neighbours (all eight), working outwards one ring per
+   pass. The soft edge is four pixels wide (two inside the eroded outline, two outside); eight
+   passes colour it and four pixels beyond, so an 8 by 8 JPEG block that straddles the edge has
+   nothing foreign in it to bleed. */
+export const DECONTAMINATE_PASSES = 8;
 export function decontaminate(rgba, alpha, w, h, passes) {
-  passes = passes || 4;
+  passes = passes || DECONTAMINATE_PASSES;
   let solid = new Uint8Array(w * h);
   for (let p = 0; p < w * h; p++) solid[p] = alpha[p] === 255 ? 1 : 0;
+  const fills = [];
   for (let pass = 0; pass < passes; pass++) {
     const next = solid.slice();
-    const fills = [];
+    fills.length = 0;
     for (let y = 0; y < h; y++) {
+      const y0 = y > 0 ? y - 1 : y;
+      const y1 = y < h - 1 ? y + 1 : y;
       for (let x = 0; x < w; x++) {
         const p = y * w + x;
         if (solid[p]) continue;
+        const x0 = x > 0 ? x - 1 : x;
+        const x1 = x < w - 1 ? x + 1 : x;
         let r = 0;
         let g = 0;
         let b = 0;
         let n = 0;
-        const take = (q) => {
-          if (!solid[q]) return;
-          r += rgba[q * 4];
-          g += rgba[q * 4 + 1];
-          b += rgba[q * 4 + 2];
-          n++;
-        };
-        if (x > 0) take(p - 1);
-        if (x < w - 1) take(p + 1);
-        if (y > 0) take(p - w);
-        if (y < h - 1) take(p + w);
+        for (let yy = y0; yy <= y1; yy++) {
+          for (let xx = x0; xx <= x1; xx++) {
+            const q = yy * w + xx;
+            if (!solid[q]) continue;
+            r += rgba[q * 4];
+            g += rgba[q * 4 + 1];
+            b += rgba[q * 4 + 2];
+            n++;
+          }
+        }
         if (!n) continue;
         fills.push(p, Math.round(r / n), Math.round(g / n), Math.round(b / n));
         next[p] = 1;
@@ -102,7 +110,7 @@ export function finalCutout(rgba, mask, w, h, opts) {
   const eroded = erode1(mask, w, h);
   const alpha = feather(eroded, w, h);
   const colour = new Uint8ClampedArray(rgba);
-  decontaminate(colour, alpha, w, h, opts.passes || 4);
+  decontaminate(colour, alpha, w, h, opts.passes || DECONTAMINATE_PASSES);
   const box = trim(alpha, w, h, opts.margin) || { x0: 0, y0: 0, x1: w - 1, y1: h - 1 };
   const cw = box.x1 - box.x0 + 1;
   const ch = box.y1 - box.y0 + 1;

@@ -1,6 +1,6 @@
 # aWardrobe: Test Plan
 
-Phase 4 of 5. Draft 2, 1 October 2026. Draft 1 was approved on 1 October 2026; Draft 2 adds the tests from `05-plan.md` section 12 (U-SEG-11, U-SEG-12, U-MOD-11, U-SRCH-6, C-9, and steps in E-1, E-10 and E-16) and the small harness-level tests for the database, formatting and routing modules that building milestone 1 showed were worth having (section 3.16). Nothing else changed.
+Phase 4 of 5. Draft 3, 2 October 2026. Draft 1 was approved on 1 October 2026; Draft 2 added the tests from `05-plan.md` section 12 (U-SEG-11, U-SEG-12, U-MOD-11, U-SRCH-6, C-9, and steps in E-1, E-10 and E-16) and the small harness-level tests for the database, formatting and routing modules that building milestone 1 showed were worth having (section 3.16). Draft 3 records the tests the milestone 2 review added: U-SEG-13 to U-SEG-19, U-EDGE-6, the thumbnail check in U-EDGE-5, the pastel cases in U-COL-5, the reversed strong-bulb case in U-COL-4, and the unit-level part of P-1. Nothing else changed.
 
 ## 0. How to read this
 
@@ -86,8 +86,8 @@ Each line is one test: id, what it checks, and what it covers. Files are named a
 - **U-COL-1** sRGB to OKLab and back returns the same values within 1/255 for 500 random colours. Covers FR-55.
 - **U-COL-2** names each of the 26 swatches from its own hex. Covers FR-53.
 - **U-COL-3** names boundary samples as expected: navy against black, cream against white, denim against blue, olive against green, burgundy against red, each with four samples a side. Covers FR-53.
-- **U-COL-4** white balance: a fabric colour multiplied by the warm and cool casts, with a near-neutral background multiplied the same way, corrects to within 0.03 OKLab distance of the neutral value. Covers FR-54.
-- **U-COL-5** no correction when the background is coloured (a red sheet): the gains are all 1. Covers FR-54.
+- **U-COL-4** white balance: a fabric colour multiplied by the warm and cool casts, with a near-neutral background multiplied the same way, corrects to within 0.03 OKLab distance of the neutral value. A strong bulb (1.15, 1, 0.8 on grey) is left alone: a cast that strong looks like a coloured sheet, the known limit. Covers FR-54.
+- **U-COL-5** no correction when the background is coloured (a red sheet) or tinted away from any lamp or sky (a sage wall, a pink wall, a light blue sheet): the gains are all 1. Covers FR-54.
 - **U-COL-6** the palette of S80 is two colours with navy first and shares near 70 and 30. Covers FR-53, FR-56.
 - **U-COL-7** the palette of S79 is one colour, named navy, from the lit half. Covers FR-55.
 - **U-COL-8** the 78 swatch images name correctly at least 90% of the time, and the report lists every miss. Covers NFR-39.
@@ -108,6 +108,14 @@ Each line is one test: id, what it checks, and what it covers. Files are named a
 - **U-SEG-10** T9 is run and its overlap and flag are printed; no threshold. Covers FR-26.
 - **U-SEG-11** T1 cropped tight to the jumper, so the garment fills 97% of the frame, gives "whole photo" with the message rather than an empty background model. Covers FR-27.
 - **U-SEG-12** the main-thread decode fallback produces the same mask as the worker path on T1, overlap at least 0.99. Covers FR-21, NFR-26.
+- **U-SEG-13** T10, a dress whose hem reaches the bottom edge: the main method, overlap at least 0.85. Covers FR-24.
+- **U-SEG-14** T11, a pale shirt with a dark print on a pale wall: the low-contrast flag is set even though the print stands out. Covers FR-26.
+- **U-SEG-15** T13, a white shirt on a light grey sheet: no flag, overlap at least 0.90. Covers FR-26.
+- **U-SEG-16** T12, Breton stripes the colour of the sheet: run and reported, no threshold (a known limit; the Restore brush). Covers FR-26.
+- **U-SEG-17** T1 with an orientation tag, as a phone held sideways writes it: both decode paths give a landscape working copy and the neck ends up on the right. Covers FR-21.
+- **U-SEG-18** a text file offered as a photo: both paths refuse it with the HEIC message and the worker stays alive. Covers FR-28.
+- **U-SEG-19** a worker that never answers: the call fails with "took too long" within its limit, the worker is replaced, and the next call works. Covers NFR-26.
+- **P-1 (unit part)** T1 at 12 megapixels: open plus cut-out in the worker under 1,000 ms on the PC, printed for the report; the full P-1, to the first preview frame, comes with milestone 3. Covers NFR-7.
 
 ### 3.3 Mask operations (`mask.test.js`: `domain/image/mask.js`, `skin.js`)
 
@@ -124,9 +132,10 @@ Each line is one test: id, what it checks, and what it covers. Files are named a
 
 - **U-EDGE-1** eroding by one pixel removes exactly the outer ring. Covers FR-30.
 - **U-EDGE-2** after feathering, partly transparent pixels lie within 3 px of the edge, and the interior is fully opaque. Covers FR-30.
-- **U-EDGE-3** after decontamination, pixels within 3 px outside the edge are within 0.05 OKLab of the nearest garment colour, not the background. Covers FR-30.
+- **U-EDGE-3** after decontamination, the soft edge and four pixels beyond it are within 0.05 OKLab of the garment colour, not the background. Covers FR-30.
 - **U-EDGE-4** trimming leaves a margin of 3% of the garment's size on each side, clamped at the picture edge. Covers FR-30.
-- **U-EDGE-5** the whole save pipeline on T1 produces a JPEG under 500 KB and an alpha PNG under 100 KB at 1200 px, and a thumbnail pair under 60 KB. Covers NFR-14, NFR-16.
+- **U-EDGE-5** the whole save pipeline on T1 produces a JPEG under 500 KB and an alpha PNG under 100 KB at 1200 px, and a thumbnail pair under 60 KB; under 2% of the thumbnail's soft-edge pixels are more than 0.08 OKLab from the garment colour. Covers NFR-14, NFR-16, FR-30.
+- **U-EDGE-6** the final cut-out of T1 is trimmed to the jumper with a margin, keeps its alpha, and under 2% of its soft-edge pixels carry sheet colour. Covers FR-30.
 
 ### 3.5 Raster (`raster.test.js`: `domain/image/raster.js`)
 
@@ -380,16 +389,16 @@ Generated from the "Covers" lines above and from the use-case traceability in `0
 | FR-18 | E-11, E-17 |
 | FR-19 | E-10, E-11 |
 | FR-20 | E-1, E-11, M-5 |
-| FR-21 | U-SEG-12, E-1, E-11, M-6 |
+| FR-21 | U-SEG-12, U-SEG-17, E-1, E-11, M-6 |
 | FR-22 | U-RAS-4, E-1, E-11 |
 | FR-23 | U-SEG-1, U-SEG-8, E-1, E-11, M-5, T1, T8 |
-| FR-24 | U-SEG-1, U-SEG-2, U-SEG-3, U-SEG-7, U-SEG-9, U-MASK-3, U-MASK-4, E-1, E-11, M-7, T1, T2, T3, T7 |
+| FR-24 | U-SEG-1, U-SEG-2, U-SEG-3, U-SEG-7, U-SEG-9, U-SEG-13, U-MASK-3, U-MASK-4, E-1, E-11, M-7, T1, T2, T3, T7, T10 |
 | FR-25 | U-SEG-6, E-1, E-2 |
-| FR-26 | U-SEG-4, U-SEG-10, E-1, E-2, M-7, T4, T9 |
+| FR-26 | U-SEG-4, U-SEG-10, U-SEG-14, U-SEG-15, U-SEG-16, E-1, E-2, M-7, T4, T9, T11, T12, T13 |
 | FR-27 | U-SEG-5, U-SEG-8, U-SEG-11, U-MASK-6, E-1, T6, T8 |
-| FR-28 | E-1 |
+| FR-28 | U-SEG-18, E-1 |
 | FR-29 | E-1, E-2 |
-| FR-30 | U-MASK-6, U-EDGE-1, U-EDGE-2, U-EDGE-3, U-EDGE-4, U-PNG-1, E-1, E-2 |
+| FR-30 | U-MASK-6, U-EDGE-1, U-EDGE-2, U-EDGE-3, U-EDGE-4, U-EDGE-5, U-EDGE-6, U-PNG-1, E-1, E-2 |
 | FR-31 | E-2, E-11 |
 | FR-32 | E-1, E-2 |
 | FR-33 | U-GEO-3, U-GEO-4, U-GEO-6, E-2, M-11 |

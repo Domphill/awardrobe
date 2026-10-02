@@ -1,7 +1,7 @@
 /* aWardrobe infra: the parts of the image pipeline that need a canvas or the browser's decoders
    (architecture section 5). Runs in the image worker, and on the main thread where a browser
    cannot do it in a worker. Decoding a photo, encoding JPEGs, the save-time cut-out. */
-import { fitSize, resize, resizeGray } from '../domain/image/raster.js';
+import { fitSize, resize, resizeWithAlpha } from '../domain/image/raster.js';
 import { finalCutout } from '../domain/image/edges.js';
 import { encodeGrayPng } from '../domain/image/png.js';
 
@@ -57,19 +57,32 @@ export async function decodeFile(file, opts) {
       throw new ImageError();
     }
   }
+  let oc = null;
+  let wc = null;
   try {
     const [ow, oh] = fitSize(bmp.width, bmp.height, originalSide);
-    const oc = makeCanvas(ow, oh);
-    oc.getContext('2d').drawImage(bmp, 0, 0, ow, oh);
+    oc = makeCanvas(ow, oh);
+    const octx = oc.getContext('2d');
+    octx.imageSmoothingQuality = 'high';
+    octx.drawImage(bmp, 0, 0, ow, oh);
+    if (bmp.close) bmp.close();
+    bmp = null;
     const original = await canvasToBlob(oc, 'image/jpeg', JPEG_ORIGINAL);
+    /* the working copy is scaled down from the reduced original, two gentle steps instead of
+       one harsh one, so fine weaves do not alias */
     const [ww, wh] = fitSize(ow, oh, workSide);
-    const wc = makeCanvas(ww, wh);
+    wc = makeCanvas(ww, wh);
     const wctx = wc.getContext('2d', { willReadFrequently: true });
-    wctx.drawImage(bmp, 0, 0, ww, wh);
+    wctx.imageSmoothingQuality = 'high';
+    wctx.drawImage(oc, 0, 0, ww, wh);
     const work = wctx.getImageData(0, 0, ww, wh);
     return { work, original, width: ww, height: wh, originalWidth: ow, originalHeight: oh };
   } finally {
-    if (bmp.close) bmp.close();
+    if (bmp && bmp.close) bmp.close();
+    for (const c of [oc, wc]) if (c) {
+      c.width = 0;
+      c.height = 0;
+    }
   }
 }
 
@@ -79,11 +92,15 @@ export async function encodeCutout(final, quality) {
   const alpha = await encodeGrayPng(final.alpha, final.width, final.height);
   return { colour, alpha, width: final.width, height: final.height, bytes: colour.size + alpha.size };
 }
-export async function makeThumbnail(final, side) {
+/* the thumbnail's pixels before encoding */
+export function thumbnailPixels(final, side) {
   const [tw, th] = fitSize(final.width, final.height, side || THUMB_SIDE);
-  const rgba = resize(final.rgba, final.width, final.height, tw, th);
-  const alpha = resizeGray(final.alpha, final.width, final.height, tw, th);
-  return encodeCutout({ rgba, alpha, width: tw, height: th }, JPEG_THUMB);
+  if (tw === final.width && th === final.height) return { rgba: final.rgba, alpha: final.alpha, width: tw, height: th };
+  const { rgba, alpha } = resizeWithAlpha(final.rgba, final.alpha, final.width, final.height, tw, th);
+  return { rgba, alpha, width: tw, height: th };
+}
+export async function makeThumbnail(final, side) {
+  return encodeCutout(thumbnailPixels(final, side), JPEG_THUMB);
 }
 /* Everything that happens to the pixels at save: edges, trim, encode, thumbnail (FR-29, FR-30). */
 export async function finalizeCutout(rgba, mask, w, h, opts) {
