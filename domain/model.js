@@ -71,3 +71,51 @@ export function validateGarment(g) {
   if (g.price !== null && g.price !== undefined && g.price !== '' && !(typeof g.price === 'number' ? g.price >= 0 : /^\d+(\.\d+)?$/.test(String(g.price).trim()))) problems.push('The price should be a number.');
   return problems;
 }
+
+/* ---------- wears and cost per wear (FR-11, FR-16, FR-80, FR-96, FR-99) ---------- */
+export const priceOf = (g) => (g.price === null || g.price === undefined || g.price === '' || isNaN(Number(g.price)) ? null : Number(g.price));
+export const isGone = (g) => g.status === 'gone';
+
+/* Which garments were worn on which days: a day counts once it is today or earlier, logged or
+   planned (FR-80); a garment counts once per day whether listed on its own or inside an outfit.
+   Returns a Map of garment id to { wears, lastWorn }. */
+export function wearStats(days, outfits, today) {
+  const byOutfit = new Map();
+  for (const o of outfits || []) byOutfit.set(o.id, (o.pieces || []).map((p) => p.garmentId));
+  const stats = new Map();
+  for (const d of days || []) {
+    if (!d || !d.id || d.id > today) continue;
+    const seen = new Set(d.garments || []);
+    for (const oid of d.outfits || []) for (const id of byOutfit.get(oid) || []) seen.add(id);
+    for (const id of seen) {
+      const s = stats.get(id) || { wears: 0, lastWorn: null };
+      s.wears++;
+      if (!s.lastWorn || d.id > s.lastWorn) s.lastWorn = d.id;
+      stats.set(id, s);
+    }
+  }
+  return stats;
+}
+export function wearsOf(stats, id) {
+  const s = stats && typeof stats.get === 'function' ? stats.get(id) : null;
+  return s ? { wears: s.wears, lastWorn: s.lastWorn } : { wears: 0, lastWorn: null };
+}
+/* price over wears, an unworn garment counting as one wear; null without a price (FR-11) */
+export function costPerWear(price, wears) {
+  if (price === null || price === undefined || price === '' || isNaN(Number(price))) return null;
+  return Number(price) / Math.max(1, wears || 0);
+}
+export const closetValue = (garments) => garments.filter((g) => !isGone(g)).reduce((sum, g) => sum + (priceOf(g) || 0), 0);
+/* the gone garments as a group: how many, what they cost, their average cost per wear (FR-99) */
+export function goneGroup(garments, stats) {
+  const gone = garments.filter(isGone);
+  const each = gone.map((g) => costPerWear(g.price, wearsOf(stats, g.id).wears)).filter((x) => x !== null);
+  return { count: gone.length, cost: gone.reduce((sum, g) => sum + (priceOf(g) || 0), 0), averageCostPerWear: each.length ? each.reduce((a, b) => a + b, 0) / each.length : null };
+}
+
+/* ---------- gone from the closet (FR-14) ---------- */
+export function markGone(g, reason, date) {
+  if (!GONE_REASONS.some((r) => r.key === reason)) throw new Error('Unknown gone reason: ' + reason);
+  return Object.assign({}, g, { status: 'gone', gone: { reason, date: date || null } });
+}
+export const bringBack = (g) => Object.assign({}, g, { status: 'active', gone: null });
