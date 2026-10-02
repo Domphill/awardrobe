@@ -500,6 +500,14 @@ textarea.input {
 }
 .page-top .title {
   flex: 1;
+  font-size: 20px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.page-top .actions {
+  flex: none;
 }
 .plain-list {
   display: grid;

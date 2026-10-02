@@ -215,16 +215,16 @@ function createLive({ app, router, shell }, key, existing) {
     shell.onLeave = detach;
     shell.onHide = () => app.drafts.flush().catch(() => {});
     const title = existing ? 'Edit garment' : 'Add a garment';
-    els.undo = btn('Undo strength', editorHandle.undo, { kind: 'ghost', icon: 'undo', id: 'edit-undo', small: true });
+    els.undo = btn('Undo strength', editorHandle.undo, { icon: 'undo', id: 'edit-undo', small: true });
     els.redo = iconBtn('redo', 'Redo strength', editorHandle.redo, { id: 'edit-redo' });
-    root.appendChild(h('div.page-top', iconBtn('back', 'Back', leave, { id: 'edit-back' }), h('h1.title.small#edit-title', title), h('div.actions', els.undo, els.redo)));
+    root.appendChild(h('div.page-top', iconBtn('back', 'Back', leave, { id: 'edit-back' }), h('h1.title.small#edit-title', title)));
     /* the stage */
     els.canvas = h('canvas#stage-canvas', { 'aria-hidden': 'true' });
     els.fileCamera = h('input#file-camera', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true, onchange: (e) => open(e.target.files && e.target.files[0]) });
     els.fileLibrary = h('input#file-library', { type: 'file', accept: 'image/*', hidden: true, onchange: (e) => open(e.target.files && e.target.files[0]) });
     els.stageEmpty = h('div.stage-empty', icon('camera'), h('p', existing ? 'Take or choose a new photo to replace this one, or keep it as it is.' : 'Lay the garment flat on a plain background, like a bed sheet or a wall, and photograph it from above.'), h('div.actions.center', btn('Take a photo', () => els.fileCamera.click(), { kind: 'primary', icon: 'camera', id: 'photo-take' }), btn('Choose a photo', () => els.fileLibrary.click(), { icon: 'image', id: 'photo-choose' })));
     els.busy = h('div.stage-busy', { role: 'status', 'aria-live': 'polite', hidden: true }, h('div.spinner'), h('span'));
-    els.stage = h('div.stage#stage', els.canvas, els.stageEmpty, els.busy, els.fileCamera, els.fileLibrary);
+    els.stage = h('div.stage#stage', els.canvas, els.stageEmpty, h('div.stage-tools', els.undo, els.redo), els.busy, els.fileCamera, els.fileLibrary);
     root.appendChild(els.stage);
     els.warning = h('div.warning#edit-warning', { role: 'status', hidden: true });
     root.appendChild(els.warning);
