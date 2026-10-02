@@ -1,15 +1,14 @@
 /* aWardrobe screen: the garment page (FR-10, FR-11, FR-13, FR-17 to FR-19). Wear logging and
-   "gone" arrive with the calendar milestone; outfits with the outfits milestone. */
+   "gone" controls arrive with the calendar milestone; outfits with the outfits milestone. */
 import { h, btn, iconBtn, pic, empty, sectionHead, confirmSheet, toast } from '../components.js';
-import { icon } from '../icons.js';
-import { wearsOf, costPerWear, parseDay } from '../../domain/model.js';
+import { wearsOf, costPerWear, parseDay, GONE_REASONS } from '../../domain/model.js';
 import { money, relativeDay, fmtShortYear, plural } from '../format.js';
 
 const stat = (value, label, id) => h('div.stat', h('b.stat-value', { id }, value), h('span.stat-label', label));
 
 export const garment = {
   name: 'garment',
-  render(root, arg, { app, router, shell }) {
+  render(root, arg, { app, router }) {
     const g = arg ? app.records.get('garments', arg) : null;
     if (!g) {
       root.appendChild(empty('This garment is no longer here', 'It may have been deleted on this phone or another.', btn('Go to Closet', () => router.go('closet', null, { replace: true }), { kind: 'primary' })));
@@ -39,7 +38,12 @@ export const garment = {
       )
     );
     const isCutout = !g.cutout || g.cutout.kind !== 'photo';
-    root.appendChild(h('div.hero' + (isCutout ? '.dots' : ''), { 'aria-label': g.name || 'The garment' }, pic(() => app.pictures.image(g.pictures && g.pictures.cutout, 'full'), { eager: true, natural: true })));
+    const size = g.cutout && g.cutout.width && g.cutout.height ? { w: g.cutout.width, h: g.cutout.height } : {};
+    root.appendChild(h('div.hero' + (isCutout ? '.dots' : ''), pic(() => app.pictures.image(g.pictures && g.pictures.cutout, 'full'), Object.assign({ eager: true, natural: true, alt: g.name || g.type || 'The garment' }, size))));
+    if (g.status === 'gone') {
+      const reason = GONE_REASONS.find((r) => r.key === (g.gone && g.gone.reason));
+      root.appendChild(h('p.warning#garment-gone', 'Marked gone from your closet' + (reason ? ' (' + reason.label.toLowerCase() : '') + (g.gone && g.gone.date ? (reason ? ', ' : ' (') + fmtShortYear(parseDay(g.gone.date)) : '') + (reason || (g.gone && g.gone.date) ? ')' : '') + '. Bringing it back arrives with the calendar update.'));
+    }
     root.appendChild(h('h1.title#garment-name', g.name || g.type || 'Untitled'));
     const sub = [g.brand, g.type ? g.type.toLowerCase() : '', g.size ? 'size ' + g.size : ''].filter(Boolean).join(', ');
     if (sub) root.appendChild(h('p.sub#garment-sub', sub));
@@ -77,7 +81,5 @@ export const garment = {
         }, { kind: 'ghost danger-text', icon: 'trash', id: 'garment-delete' })
       )
     );
-    void icon;
-    void shell;
   }
 };

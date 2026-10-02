@@ -197,30 +197,49 @@ function observer() {
   lazyObserver = new IntersectionObserver(
     (entries) => {
       for (const e of entries) {
-        if (!e.isIntersecting) continue;
         const job = lazyJobs.get(e.target);
-        lazyObserver.unobserve(e.target);
-        lazyJobs.delete(e.target);
-        if (job) job();
+        if (!job) continue;
+        if (e.isIntersecting) job.draw();
+        else job.release();
       }
     },
     { rootMargin: '240px' }
   );
   return lazyObserver;
 }
+/* a lazily drawn picture gives its canvas memory back (NFR-13) */
+export function releasePic(c) {
+  const job = lazyJobs.get(c);
+  if (job) {
+    lazyJobs.delete(c);
+    if (lazyObserver) lazyObserver.unobserve(c);
+  }
+  if (c.width) {
+    c.width = 0;
+    c.height = 0;
+  }
+  delete c.dataset.drawn;
+}
 export function pic(load, opts) {
   opts = opts || {};
-  const c = h('canvas.thumb', { width: String(opts.w || 300), height: String(opts.h || 360), role: 'img', 'aria-label': opts.alt || '' });
+  const W0 = Number(opts.w || 300);
+  const H0 = Number(opts.h || 360);
+  const c = h('canvas.thumb', { width: String(W0), height: String(H0), role: 'img', 'aria-label': opts.alt || '' });
+  let drawing = false;
   const draw = async () => {
+    if (drawing) return;
+    drawing = true;
     try {
       const img = await load();
-      if (!img) return;
-      let W = c.width;
-      let H = c.height;
+      if (!img || !lazyJobs.has(c) && !opts.eager) return;
+      let W = W0;
+      let H = H0;
       if (opts.natural) {
         const k = Math.min(1, 1200 / Math.max(img.width, img.height));
         W = Math.max(1, Math.round(img.width * k));
         H = Math.max(1, Math.round(img.height * k));
+      }
+      if (c.width !== W || c.height !== H) {
         c.width = W;
         c.height = H;
       }
@@ -233,18 +252,27 @@ export function pic(load, opts) {
       c.dataset.drawn = '1';
     } catch (e) {
       c.dataset.failed = '1';
+    } finally {
+      drawing = false;
     }
+  };
+  /* out of view: free the backing store, keep the box size for the layout */
+  const release = () => {
+    if (!c.dataset.drawn) return;
+    c.width = 0;
+    c.height = 0;
+    delete c.dataset.drawn;
   };
   if (opts.eager || typeof IntersectionObserver !== 'function') draw();
   else {
-    lazyJobs.set(c, draw);
+    lazyJobs.set(c, { draw, release });
     observer().observe(c);
   }
   return c;
 }
 /* Keeps a container's children in step with a list by key, reusing the elements that are
    already there, so pictures stay drawn and nothing flickers. */
-export function patchList(container, items, keyOf, make) {
+export function patchList(container, items, keyOf, make, update) {
   const existing = new Map();
   for (const el of Array.from(container.children)) existing.set(el.dataset.key, el);
   const keep = new Set();
@@ -256,9 +284,14 @@ export function patchList(container, items, keyOf, make) {
     if (!el) {
       el = make(item);
       el.dataset.key = key;
-    }
+    } else if (update) update(el, item);
     if (el === cursor) cursor = cursor.nextSibling;
     else container.insertBefore(el, cursor);
   }
-  for (const [key, el] of existing) if (!keep.has(key)) el.remove();
+  for (const [key, el] of existing) {
+    if (keep.has(key)) continue;
+    for (const c of el.querySelectorAll('canvas.thumb')) releasePic(c);
+    if (el.matches('canvas.thumb')) releasePic(el);
+    el.remove();
+  }
 }

@@ -37,18 +37,18 @@ export function createImageWorker() {
       pending.delete(id);
       if (ok) p.resolve(unpack(result));
       else {
-        const err = new Error(error || 'The image worker failed.');
+        const err = new Error(error || 'The photo tools failed.');
         err.name = kind === 'ImageError' ? 'ImageError' : 'WorkerError';
         p.reject(err);
       }
     };
     worker.onerror = (e) => {
-      const err = new Error('The image worker stopped: ' + ((e && e.message) || 'unknown error'));
+      const err = new Error('The photo tools stopped unexpectedly (' + ((e && e.message) || 'unknown error') + ').');
       err.name = 'WorkerError';
       drop(err);
     };
     worker.onmessageerror = () => {
-      const err = new Error('The image worker sent something that could not be read.');
+      const err = new Error('The photo tools sent back something that could not be read.');
       err.name = 'WorkerError';
       drop(err);
     };
@@ -62,7 +62,7 @@ export function createImageWorker() {
     call(type, payload, transfer, opts) {
       opts = opts || {};
       if (crashes >= MAX_RESTARTS && !worker) {
-        const err = new Error('The image worker keeps failing on this device.');
+        const err = new Error('The photo tools keep failing on this phone. Try closing and reopening the app.');
         err.name = 'WorkerError';
         return Promise.reject(err);
       }
@@ -73,10 +73,10 @@ export function createImageWorker() {
         const timer = setTimeout(() => {
           if (!pending.has(id)) return;
           pending.delete(id);
-          const err = new Error('The image work took too long and was stopped.');
+          const err = new Error('The photo work took too long and was stopped. Try again, or a smaller photo.');
           err.name = 'WorkerError';
           reject(err);
-          const rest = new Error('The image worker was restarted after a request took too long.');
+          const rest = new Error('The photo tools were restarted after a step took too long.');
           rest.name = 'WorkerError';
           drop(rest);
         }, ms);
@@ -93,7 +93,7 @@ export function createImageWorker() {
     terminate() {
       if (worker) worker.terminate();
       worker = null;
-      failAll(new Error('The image worker was closed.'));
+      failAll(new Error('The photo tools were closed.'));
     },
     get crashes() {
       return crashes;

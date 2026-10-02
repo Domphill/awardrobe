@@ -2,18 +2,24 @@
    FR-53 to FR-62). The photo box with the preview, the strength tape, whole photo, the colours,
    the type guess and the details form. The editing tools arrive with the next milestone; the
    tool bar is their place, with Move selected. */
-import { h, btn, iconBtn, field, sheet, confirmSheet, toast, chip, toggleChips, clear } from '../components.js';
+import { h, btn, iconBtn, field, sheet, confirmSheet, toast, toggleChips, clear } from '../components.js';
 import { icon } from '../icons.js';
 import { CATEGORIES, SEASONS, OCCASIONS, category } from '../../domain/model.js';
 import { SWATCHES } from '../../domain/colour/naming.js';
 import { createSession } from '../../app/editor-session.js';
 import { suggestName, ValidationError } from '../../app/garments.js';
 
-const TOOLS = [['move', 'Move'], ['wand', 'Wand'], ['select', 'Select'], ['paint', 'Paint'], ['eraser', 'Eraser'], ['restore', 'Restore'], ['rotate', 'Rotate'], ['crop', 'Crop'], ['dropper', 'Dropper']];
 const WARN_PALE = 'This garment and its background look alike (pale on pale), so the cut-out may be rough. A darker background helps, or use the Select brush when the editing tools arrive.';
 const WARN_WHOLE = 'The whole photo was kept, because the cut-out would have removed almost everything or almost nothing. You can try another strength or keep it as it is.';
 const MAX_COLOURS = 3;
-const lowerType = (t) => (/^[A-Z][a-z]/.test(t) ? t[0].toLowerCase() + t.slice(1) : t);
+const NO_ARTICLE = ['Bottoms', 'Shoes', 'Outerwear', 'Jewellery'];
+const withArticle = (one) => (NO_ARTICLE.includes(one) ? one.toLowerCase() : (/^[aeiou]/i.test(one) ? 'an ' : 'a ') + one.toLowerCase());
+/* "Looks like a top (T-shirt), going by the shoulders wider than the body." */
+const guessLine = (g) => {
+  const kind = withArticle(category(g.category).one) + ' (' + g.type + ')';
+  if (g.votes) return 'Looks like ' + kind + ', ' + g.why + ' (' + g.votes + ' of ' + g.of + ' similar garments agree).';
+  return 'Looks like ' + kind + ', going by ' + g.why + '.';
+};
 
 const emptyForm = () => ({ name: '', category: 'tops', type: '', brand: '', size: '', price: '', bought: '', seasons: [], occasions: [], notes: '', favourite: false, colours: [] });
 const formOf = (g) => ({ name: g.name || '', category: g.category || 'other', type: g.type || '', brand: g.brand || '', size: g.size || '', price: g.price === null || g.price === undefined ? '' : String(g.price), bought: g.bought || '', seasons: (g.seasons || []).slice(), occasions: (g.occasions || []).slice(), notes: g.notes || '', favourite: !!g.favourite, colours: (g.colours || []).map((c) => ({ name: c.name, hex: c.hex })) });
@@ -44,26 +50,30 @@ export const garmentEdit = {
 function createLive({ app, router, shell }, key, existing) {
   const session = createSession(app);
   const form = existing ? formOf(existing) : emptyForm();
-  const chosen = { category: !!existing, type: !!existing, name: !!(existing && existing.name) };
+  /* what the user has chosen, which the guess and the photo never overwrite (FR-57, FR-58) */
+  const chosen = { category: !!existing, type: !!existing, name: !!(existing && existing.name), colours: !!(existing && existing.colours && existing.colours.length) };
   let root = null;
   let els = {};
   let saving = false;
   let touched = false;
   let offered = false;
+  let resizeHooked = false;
 
-  /* ---------- the draft ---------- */
+  /* ---------- the draft (new garments only in this milestone; edit drafts come with the editor) ---------- */
   const draftFields = async () => {
     const pic = await session.toDraft(app.drafts);
     if (!pic && !touched) return null;
-    return Object.assign({ garmentId: existing ? existing.id : null, form: JSON.parse(JSON.stringify(form)), chosen: Object.assign({}, chosen) }, pic || {});
+    return Object.assign({ garmentId: null, form: JSON.parse(JSON.stringify(form)), chosen: Object.assign({}, chosen) }, pic || {});
   };
-  const scheduleDraft = () => app.drafts.schedule(draftFields);
+  const scheduleDraft = () => {
+    if (!existing) app.drafts.schedule(draftFields);
+  };
   const offerDraft = async () => {
-    if (offered) return;
+    if (offered || existing) return;
     offered = true;
     await app.drafts.flush();
     const d = await app.drafts.get();
-    if (!d || (d.garmentId || null) !== (existing ? existing.id : null) || !root || !root.isConnected) return;
+    if (!d || d.garmentId || !root || !root.isConnected || session.state.work || session.state.status !== 'empty') return;
     const what = d.form && d.form.name ? '"' + d.form.name + '"' : 'the garment you were adding';
     const s = sheet({
       title: 'Carry on where you left off?',
@@ -91,8 +101,9 @@ function createLive({ app, router, shell }, key, existing) {
   };
 
   /* ---------- the photo ---------- */
+  const busyNow = () => session.state.status === 'opening' || session.state.status === 'cutting' || saving;
   const open = async (file) => {
-    if (!file) return;
+    if (!file || busyNow()) return;
     try {
       await session.open(file);
     } catch (e) {
@@ -103,6 +114,12 @@ function createLive({ app, router, shell }, key, existing) {
     scheduleDraft();
     update();
   };
+  const onPick = (e) => {
+    const file = e.target.files && e.target.files[0];
+    /* reset, so the same photo can be chosen again (Chrome fires no change for a repeat) */
+    e.target.value = '';
+    open(file);
+  };
   const applyGuess = () => {
     const g = session.state.guess;
     if (g) {
@@ -111,7 +128,7 @@ function createLive({ app, router, shell }, key, existing) {
         if (!chosen.type) form.type = g.type;
       } else if (!chosen.type && g.category === form.category) form.type = g.type;
     }
-    if (!form.colours.length || !touched) form.colours = session.state.colours.slice(0, MAX_COLOURS);
+    if (!chosen.colours) form.colours = session.state.colours.slice(0, MAX_COLOURS);
     suggest();
     fillForm();
   };
@@ -121,18 +138,20 @@ function createLive({ app, router, shell }, key, existing) {
     if (els.name) els.name.value = form.name;
   };
   const differentPhoto = async () => {
+    if (busyNow()) return;
     if (session.state.dirty) {
       const ok = await confirmSheet({ title: 'Start again with a different photo?', body: 'The cut-out you have changed will be dropped. Your details stay.', confirm: 'Different photo', cancel: 'Cancel' });
       if (!ok) return;
     }
+    chosen.colours = false;
     session.reset();
     update();
   };
 
   /* ---------- saving and leaving ---------- */
   const save = async () => {
-    if (saving) return;
-    const hasPhoto = !!session.state.work || !!(existing && existing.pictures && existing.pictures.cutout && !session.state.work);
+    if (saving || busyNow()) return;
+    const hasPhoto = !!session.state.work || !!(existing && existing.pictures && existing.pictures.cutout);
     const problems = app.garments.validate(form, hasPhoto);
     if (problems.length) {
       showProblems(problems);
@@ -141,26 +160,35 @@ function createLive({ app, router, shell }, key, existing) {
     saving = true;
     showProblems([]);
     setBusy('Saving…');
+    let saved = null;
     try {
       const result = session.state.work ? await session.finalize() : null;
-      const { garment, warning } = await app.garments.save({ existing, form, result });
-      await app.drafts.clear();
-      drop();
-      toast(existing ? 'Saved.' : 'Added to your closet.');
-      if (warning) toast(warning);
-      router.go('garment', garment.id, { replace: true });
+      saved = await app.garments.save({ existing, form, result });
     } catch (e) {
       if (e instanceof ValidationError) showProblems(e.problems);
       else {
         /* the draft goes to disk first, so the message is true when it shows */
-        app.drafts.schedule(draftFields);
-        await app.drafts.flush();
+        if (!existing) {
+          app.drafts.schedule(draftFields);
+          await app.drafts.flush();
+        }
         toast("That couldn't be saved. " + ((e && e.message) || ''));
       }
     } finally {
       saving = false;
       setBusy(null);
     }
+    if (!saved) return;
+    try {
+      await app.drafts.clear();
+    } catch (e) {
+      /* the garment is saved; a draft that lingers is offered once and can be started afresh */
+    }
+    drop();
+    toast(existing ? 'Saved.' : 'Added to your closet.');
+    if (saved.warning) toast(saved.warning);
+    if (existing && router.depth > 0) router.back();
+    else router.go('garment', saved.garment.id, { replace: true });
   };
   const leave = async () => {
     if (session.state.work || touched) {
@@ -171,7 +199,7 @@ function createLive({ app, router, shell }, key, existing) {
     router.back('closet');
   };
   const discard = async () => {
-    await app.drafts.clear();
+    if (!existing) await app.drafts.clear();
     drop();
   };
   /* the screen is left for another: keep the draft, let the live state go */
@@ -179,18 +207,27 @@ function createLive({ app, router, shell }, key, existing) {
     app.drafts.flush().catch(() => {});
     drop();
   };
+  const onResize = () => update();
   const drop = () => {
     if (live === api) live = null;
     if (shell.pickPhoto === pickPhoto) shell.pickPhoto = null;
     if (shell.editor === editorHandle) shell.editor = null;
     if (shell.onLeave === detach) shell.onLeave = null;
     shell.onHide = null;
+    if (resizeHooked) {
+      window.removeEventListener('resize', onResize);
+      resizeHooked = false;
+    }
   };
   const pickPhoto = (file) => open(file);
   const editorHandle = {
     state: () => session.state,
     setStrength: async (v) => {
-      await session.setStrength(v);
+      try {
+        await session.setStrength(v);
+      } catch (e) {
+        /* the session keeps its last result and says what went wrong */
+      }
       touched = true;
       scheduleDraft();
       update();
@@ -214,15 +251,21 @@ function createLive({ app, router, shell }, key, existing) {
     shell.editor = editorHandle;
     shell.onLeave = detach;
     shell.onHide = () => app.drafts.flush().catch(() => {});
+    if (!resizeHooked) {
+      window.addEventListener('resize', onResize);
+      resizeHooked = true;
+    }
     const title = existing ? 'Edit garment' : 'Add a garment';
     els.undo = btn('Undo strength', editorHandle.undo, { icon: 'undo', id: 'edit-undo', small: true });
     els.redo = iconBtn('redo', 'Redo strength', editorHandle.redo, { id: 'edit-redo' });
     root.appendChild(h('div.page-top', iconBtn('back', 'Back', leave, { id: 'edit-back' }), h('h1.title.small#edit-title', title)));
     /* the stage */
     els.canvas = h('canvas#stage-canvas', { 'aria-hidden': 'true' });
-    els.fileCamera = h('input#file-camera', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true, onchange: (e) => open(e.target.files && e.target.files[0]) });
-    els.fileLibrary = h('input#file-library', { type: 'file', accept: 'image/*', hidden: true, onchange: (e) => open(e.target.files && e.target.files[0]) });
-    els.stageEmpty = h('div.stage-empty', icon('camera'), h('p', existing ? 'Take or choose a new photo to replace this one, or keep it as it is.' : 'Lay the garment flat on a plain background, like a bed sheet or a wall, and photograph it from above.'), h('div.actions.center', btn('Take a photo', () => els.fileCamera.click(), { kind: 'primary', icon: 'camera', id: 'photo-take' }), btn('Choose a photo', () => els.fileLibrary.click(), { icon: 'image', id: 'photo-choose' })));
+    els.fileCamera = h('input#file-camera', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true, onchange: onPick });
+    els.fileLibrary = h('input#file-library', { type: 'file', accept: 'image/*', hidden: true, onchange: onPick });
+    els.take = btn('Take a photo', () => els.fileCamera.click(), { kind: 'primary', icon: 'camera', id: 'photo-take' });
+    els.choose = btn('Choose a photo', () => els.fileLibrary.click(), { icon: 'image', id: 'photo-choose' });
+    els.stageEmpty = h('div.stage-empty', icon('camera'), h('p', existing ? 'Take or choose a new photo to replace this one, or keep it as it is.' : 'Lay the garment flat on a plain background, like a bed sheet or a wall, and photograph it from above.'), h('div.actions.center', els.take, els.choose));
     els.busy = h('div.stage-busy', { role: 'status', 'aria-live': 'polite', hidden: true }, h('div.spinner'), h('span'));
     els.stage = h('div.stage#stage', els.canvas, els.stageEmpty, h('div.stage-tools', els.undo, els.redo), els.busy, els.fileCamera, els.fileLibrary);
     root.appendChild(els.stage);
@@ -231,11 +274,10 @@ function createLive({ app, router, shell }, key, existing) {
     /* the strength tape */
     els.strength = h('input.tape#strength', { type: 'range', min: '0', max: '100', step: '1', value: String(session.state.strength), 'aria-label': 'Cut-out strength, from keep more to remove more', oninput: () => (els.strengthValue.textContent = els.strength.value), onchange: () => editorHandle.setStrength(els.strength.value) });
     els.strengthValue = h('b', String(session.state.strength));
-    root.appendChild(h('div.tape-wrap', h('div.tape-labels', h('span', 'Keep more'), h('span', 'Cut-out strength ', els.strengthValue), h('span', 'Remove more')), els.strength));
-    /* the tools */
-    els.tools = h('div.tools', { role: 'radiogroup', 'aria-label': 'Tools' }, TOOLS.map(([k, label]) => h('button.tool', { type: 'button', role: 'radio', dataset: { tool: k }, 'aria-checked': String(k === 'move'), disabled: k !== 'move', title: k === 'move' ? 'Move: look around the picture' : label + ' arrives with the editing tools update' }, icon(k), h('span', label))));
+    root.appendChild(h('div.tape-wrap', h('div.tape-labels', h('span', 'Keep more'), h('span', 'Cut-out strength ', els.strengthValue), h('span', 'Remove more')), h('div.tape-scale', { 'aria-hidden': 'true' }, ['0', '25', '50', '75', '100'].map((n) => h('span', n))), els.strength));
+    /* the tools: Move for now; the rest arrive with the editor milestone */
+    els.tools = h('div.tools', { role: 'radiogroup', 'aria-label': 'Tools' }, h('button.tool', { type: 'button', role: 'radio', dataset: { tool: 'move' }, 'aria-checked': 'true' }, icon('move'), h('span', 'Move')), h('span.tool-note', 'Wand, Select, Paint and the other tools arrive with the next update. Until then: change the strength, take a different photo, or keep the whole photo.'));
     root.appendChild(els.tools);
-    root.appendChild(h('p.fineprint', 'Move only looks. Wand, Select, Paint and the other tools arrive with the next update; until then you can change the strength, take a different photo, or keep the whole photo.'));
     els.whole = h('input#whole-photo', { type: 'checkbox', onchange: () => {
       session.setWholePhoto(els.whole.checked);
       touched = true;
@@ -243,12 +285,16 @@ function createLive({ app, router, shell }, key, existing) {
       update();
     } });
     root.appendChild(h('label.check', els.whole, h('span', 'Keep the whole photo instead')));
-    els.actions = h('div.edit-actions', btn(existing ? 'New photo' : 'Different photo', differentPhoto, { icon: 'image', id: 'photo-different' }), btn('Colours again', async () => {
+    els.different = btn(existing ? 'New photo' : 'Different photo', differentPhoto, { icon: 'image', id: 'photo-different' });
+    els.coloursAgain = btn('Colours again', async () => {
+      if (busyNow()) return;
       await session.redetect();
+      chosen.colours = false;
       form.colours = session.state.colours.slice(0, MAX_COLOURS);
       suggest();
       update();
-    }, { icon: 'refresh', id: 'colours-again' }));
+    }, { icon: 'refresh', id: 'colours-again' });
+    els.actions = h('div.edit-actions', els.different, els.coloursAgain);
     root.appendChild(els.actions);
     /* colours and the guess */
     els.colours = h('div.colour-chips#edit-colours');
@@ -318,7 +364,7 @@ function createLive({ app, router, shell }, key, existing) {
     root.appendChild(
       h(
         'div.form',
-        h('div.form-grid', h('div.wide', field('Name', els.name)), field('Category', els.category), field('Type', h('div', els.type, els.types), 'Pick one, or type your own'), field('Brand', els.brand), field('Size', els.size), field('Price (' + prefs.currency + ')', els.price), field('Date bought', els.bought)),
+        h('div.form-grid', h('div.wide', field('Name', els.name)), field('Category', els.category), h('div', field('Type', els.type, 'Pick one, or type your own'), els.types), field('Brand', els.brand), field('Size', els.size), field('Price (' + prefs.currency + ')', els.price), field('Date bought', els.bought)),
         field('Seasons', toggleChips({ name: 'seasons', label: 'Seasons', values: SEASONS, selected: form.seasons, onChange: (v) => {
           form.seasons = v;
           touched = true;
@@ -375,6 +421,7 @@ function createLive({ app, router, shell }, key, existing) {
           return;
         }
         form.colours.push({ name, hex });
+        chosen.colours = true;
         touched = true;
         suggest();
         scheduleDraft();
@@ -396,6 +443,7 @@ function createLive({ app, router, shell }, key, existing) {
             ? iconBtn('pin', 'Make ' + c.name + ' the main colour', () => {
                 form.colours.splice(i, 1);
                 form.colours.unshift(c);
+                chosen.colours = true;
                 touched = true;
                 suggest();
                 scheduleDraft();
@@ -404,6 +452,7 @@ function createLive({ app, router, shell }, key, existing) {
             : null,
           iconBtn('x', 'Remove ' + c.name, () => {
             form.colours.splice(i, 1);
+            chosen.colours = true;
             touched = true;
             suggest();
             scheduleDraft();
@@ -447,14 +496,15 @@ function createLive({ app, router, shell }, key, existing) {
     els.canvas.dataset.ready = '1';
   };
   const update = () => {
-    if (!root || !els.stage) return;
+    if (!root || !els.stage || !els.stage.isConnected) return;
     const st = session.state;
     const has = !!st.work;
+    const busy = busyNow();
     paint(has ? session.preview() : null);
     els.stage.classList.toggle('checker', has && !st.wholePhoto);
     els.stageEmpty.hidden = has;
     if (!has && existing) drawExisting();
-    setBusy(st.busy);
+    setBusy(st.busy || (saving ? 'Saving…' : null));
     const warnings = [];
     if (st.error) warnings.push(st.error);
     if (has && st.lowContrast) warnings.push(WARN_PALE);
@@ -463,16 +513,19 @@ function createLive({ app, router, shell }, key, existing) {
     els.warning.textContent = warnings.join(' ');
     els.strength.value = String(st.strength);
     els.strengthValue.textContent = String(st.strength);
-    els.strength.disabled = !has || st.status !== 'ready' || st.choice === true;
-    els.undo.disabled = !session.undoLabel;
-    els.redo.disabled = !session.redoLabel;
+    els.strength.disabled = !has || busy || st.choice === true;
+    els.undo.disabled = busy || !session.undoLabel;
+    els.redo.disabled = busy || !session.redoLabel;
     els.whole.checked = !!st.wholePhoto;
-    els.whole.disabled = !has;
-    for (const b of els.tools.querySelectorAll('.tool')) if (b.dataset.tool !== 'move') b.disabled = true;
+    els.whole.disabled = !has || busy;
+    els.take.disabled = busy;
+    els.choose.disabled = busy;
+    els.different.disabled = busy;
+    els.coloursAgain.disabled = busy || !has;
     els.actions.hidden = !has && !existing;
     const g = st.guess;
     els.guess.hidden = !g;
-    if (g) els.guess.textContent = 'Looks like ' + category(g.category).label.toLowerCase() + ', ' + lowerType(g.type) + ': ' + g.why + '.' + (g.votes ? ' (' + g.votes + ' of ' + g.of + ' similar garments agree.)' : '');
+    if (g) els.guess.textContent = guessLine(g);
     renderColours();
   };
   session.on(() => update());

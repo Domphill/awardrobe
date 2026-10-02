@@ -8,7 +8,7 @@ import { CATEGORIES, SEASONS, OCCASIONS, GONE_REASONS, category, parseDay } from
 import { COLOUR_NAMES } from '../../domain/colour/naming.js';
 import { sortGarments, categoryCounts, activeFilterCount, closetList, goneList, matchesQuery, passesFilters, EMPTY_FILTERS, SORTS } from '../../domain/search.js';
 
-const freshView = () => ({ query: '', category: null, sort: 'newest', filters: Object.assign({}, EMPTY_FILTERS), gone: false });
+const freshView = () => ({ query: '', category: null, sort: 'newest', filters: Object.assign({}, EMPTY_FILTERS) });
 let view = freshView();
 const EMPTY_TEXT = 'Photograph each piece against a plain background, like a bed sheet or a wall, and aWardrobe cuts it out for you.';
 
@@ -19,11 +19,8 @@ export const closet = {
     const active = closetList(all);
     const gone = goneList(all);
     if (!active.length && !gone.length) view = freshView();
-    const goneLink = () => btn('Gone from closet (' + gone.length + ')', () => {
-      view.gone = true;
-      router.refresh();
-    }, { kind: 'ghost', id: 'closet-gone' });
-    if (view.gone) return renderGone(root, gone, { app, router });
+    const goneLink = () => btn('Gone from closet (' + gone.length + ')', () => router.go('closet', 'gone'), { kind: 'ghost', id: 'closet-gone' });
+    if (arg === 'gone') return renderGone(root, gone, { app, router });
     if (!active.length) {
       root.appendChild(pageHead('Closet', plural(0, 'piece')));
       root.appendChild(empty('Your closet is empty', EMPTY_TEXT, btn('Add your first garment', () => router.go('edit', 'new'), { kind: 'primary', icon: 'camera', id: 'closet-first' })));
@@ -54,7 +51,7 @@ export const closet = {
       refresh();
     };
     const clearAll = btn('Clear', resetView, { kind: 'ghost', id: 'closet-clear' });
-    const grid = h('div.item-grid', { role: 'list' });
+    const grid = h('div.item-grid');
     const nothing = h('div.empty', { hidden: true }, h('h2', 'Nothing matches'), h('p', 'Try fewer words, or clear the search and filters.'), h('div.actions', btn('Clear search and filters', resetView, { kind: 'primary' })));
     root.appendChild(h('div.closet-tools', h('div.search-wrap', icon('search'), search, clearSearch), chipsRow, h('div.sort-row', sortSel, filtersBtn, clearAll)));
     root.appendChild(grid);
@@ -68,24 +65,30 @@ export const closet = {
     const card = (g) =>
       h(
         'button.card-item',
-        { type: 'button', role: 'listitem', dataset: { id: g.id }, onclick: () => router.go('garment', g.id) },
+        { type: 'button', dataset: { id: g.id }, onclick: () => router.go('garment', g.id) },
         pic(() => app.pictures.image(g.pictures && g.pictures.thumb, 'thumb'), { alt: g.name }),
         h('span.card-name', g.name || g.type || 'Untitled'),
         g.favourite ? h('span.fav-mark', { 'aria-hidden': 'true' }, icon('star')) : null
       );
-    const categoryChip = (key, label, count, pressed) =>
-      chip(label, { count, pressed, data: { category: key }, onClick: () => {
-        view.category = pressed ? null : key === 'all' ? null : key;
+    /* the chips are patched in place, so focus stays on the one that was tapped */
+    const makeChip = (item) =>
+      chip(item.label, { count: item.count, pressed: item.pressed, data: { category: item.key }, onClick: () => {
+        view.category = item.key === 'all' || view.category === item.key ? null : item.key;
         refresh();
       } });
+    const updateChip = (el, item) => {
+      el.setAttribute('aria-pressed', String(item.pressed));
+      const count = el.querySelector('.chip-count');
+      if (count) count.textContent = String(item.count);
+    };
 
     function refresh() {
       const base = active.filter((g) => matchesQuery(g, view.query) && passesFilters(g, view.filters, stats, today));
       const counts = categoryCounts(base);
-      clear(chipsRow);
-      chipsRow.appendChild(categoryChip('all', 'All', base.length, !view.category));
-      for (const c of CATEGORIES) if (counts[c.key]) chipsRow.appendChild(categoryChip(c.key, c.label, counts[c.key], view.category === c.key));
-      if (view.category && !counts[view.category]) chipsRow.appendChild(categoryChip(view.category, category(view.category).label, 0, true));
+      const chipItems = [{ key: 'all', label: 'All', count: base.length, pressed: !view.category }];
+      for (const c of CATEGORIES) if (counts[c.key]) chipItems.push({ key: c.key, label: c.label, count: counts[c.key], pressed: view.category === c.key });
+      if (view.category && !counts[view.category]) chipItems.push({ key: view.category, label: category(view.category).label, count: 0, pressed: true });
+      patchList(chipsRow, chipItems, (x) => x.key, makeChip, updateChip);
       const shown = sortGarments(view.category ? base.filter((g) => g.category === view.category) : base, view.sort, stats);
       const narrowed = !!view.query.trim() || !!view.category || activeFilterCount(view.filters) > 0;
       sub.textContent = narrowed ? shown.length + ' of ' + total : plural(total, 'piece');
@@ -151,10 +154,7 @@ const reasonLabel = (gone) => {
   return r ? r.label : 'Gone';
 };
 function renderGone(root, gone, { app, router }) {
-  root.appendChild(h('div.page-top', btn('Back to the closet', () => {
-    view.gone = false;
-    router.refresh();
-  }, { kind: 'ghost', icon: 'back', id: 'closet-back-active' })));
+  root.appendChild(h('div.page-top', btn('Back to the closet', () => router.back('closet'), { kind: 'ghost', icon: 'back', id: 'closet-back-active' })));
   root.appendChild(pageHead('Gone from closet', plural(gone.length, 'piece')));
   if (!gone.length) {
     root.appendChild(empty('Nothing has gone yet', 'When you sell, donate or lose a garment, mark it gone from its page and it will be listed here.'));

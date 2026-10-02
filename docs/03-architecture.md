@@ -57,7 +57,7 @@ One file, one responsibility. File names are final unless Phase 5 finds a reason
 | `ui/icons.js` | The app's icons as inline SVG. |
 | `ui/format.js` | Dates, money, temperatures and plurals in British English (NFR-32). |
 | `ui/screens/home.js` | Today's weather, the reason line, suited outfits, the idea with its three buttons (FR-90). |
-| `ui/screens/closet.js` | Cards, count, search, category chips, sort, filters, the gone list (FR-1 to FR-9). |
+| `ui/screens/closet.js` | Cards, count, search, category chips, sort, filters, the gone list at `#/closet/gone` (FR-1 to FR-9). |
 | `ui/screens/garment.js` | The garment page (FR-10 to FR-19). |
 | `ui/screens/garment-edit.js` | The add/edit screen: photo box, the editor, the details form (FR-20, FR-59 to FR-62). |
 | `ui/screens/editor/stage.js` | The editor's drawing: view canvas, work canvas, overlay, checkerboard; turns pointer events into image coordinates using the one mapping function; zoom and pan gestures (FR-32 to FR-34). |
@@ -237,7 +237,7 @@ Database `awardrobe`, version 1, with stores `garments`, `outfits`, `days`, `pic
 
 - **Writes are all-or-nothing** (NFR-27). Each use case that touches several stores runs as one IndexedDB transaction: saving a garment writes its record and its three pictures together; deleting a garment removes its record, its pictures, and its entries in every outfit and day together; saving an outfit writes the record and its picture together. If any part fails the browser rolls the whole transaction back.
 - **Records in memory.** `app/records.js` loads garments, outfits and days at boot and keeps them in maps. Reads are instant; writes go to the database first and update the maps when the transaction completes. Screens subscribe to changes.
-- **Pictures on demand.** `app/pictures.js` loads a picture's blobs, decodes them, composites colour with alpha, and caches the result as an ImageBitmap (a decoded picture the browser can draw fast). Two caches: thumbnails (up to 80, about 60 MB) and full cut-outs (up to 12, about 90 MB). Cards draw into a small canvas when they scroll into view (NFR-11).
+- **Pictures on demand.** `app/pictures.js` loads a picture's blobs, decodes them, composites colour with alpha, and caches the result as an ImageBitmap (a decoded picture the browser can draw fast). Two caches: thumbnails (up to 80, about 60 MB) and full cut-outs (up to 4, about 30 MB; *Draft 4: 12 was more than a phone needs, the page shows one at a time*). Cards draw into a small canvas when they scroll into view (NFR-11) and give the canvas back when they scroll far out of view, drawing again from the cache on the way back (NFR-13).
 - **Orphans.** At boot, in idle time, pictures referenced by no garment, outfit or draft are deleted (NFR-27). An import in progress is marked in meta so its half-done pictures are not swept.
 - **Storage limits** (NFR-17). Before saving a garment, importing or restoring, the app reads `navigator.storage.estimate()`; above 80% it warns; a quota error during a transaction surfaces as a storage error with the draft kept.
 - **Persistent storage** (FR-109). After the welcome, `navigator.storage.persist()` is requested so the browser does not clear the data under pressure. Installed home-screen apps get it without a prompt.
@@ -302,6 +302,7 @@ Cost measured on this PC in headless Edge (Draft 2): the whole cut-out of a 960 
 - Groups with k-means in OKLab (k from 2 to 6 by sample count), then merges groups that are the same fabric in different light: same hue within 20°, chroma within 0.06, any lightness (FR-55). Neutral groups merge when their lightness differs by less than 0.22.
 - Each group's swatch is the average of its lighter half, so the chip shows the fabric, not its shadow. Groups under 7% of samples are dropped after the first. Up to three, main colour first.
 - Names come from `naming.js`, which looks up lightness, chroma and hue against the 26-name table from the old app; the thresholds are tuned by the colour test set (NFR-39).
+- *(Draft 4:)* when the whole photo is kept there is no mask, so the samples come from the middle 22% to 78% box of the picture, where the garment is, not from the sheet round it.
 
 ### 5.4 Type guess (step 7)
 
@@ -407,7 +408,7 @@ Snapping in Select (FR-36): a select stroke grows from the brush disc only acros
 
 ### 6.5 Drafts (FR-49)
 
-`app/drafts.js` saves the editor document (photo as JPEG, mask as PNG, selection dropped, form fields, strength, tool) at most every two seconds after a change and on `visibilitychange` (the phone sending the app to the background), and removes it on save or discard. On opening the add screen, an existing draft is offered: "Carry on with the jumper you were cutting out?" The builder draft is the pieces, slots and form fields as JSON.
+`app/drafts.js` saves the editor document (photo as JPEG, mask as PNG, selection dropped, form fields, strength, tool) at most every two seconds after a change and on `visibilitychange` (the phone sending the app to the background), and removes it on save or discard. On opening the add screen, an existing draft is offered: "Carry on with the jumper you were cutting out?" The builder draft is the pieces, slots and form fields as JSON. *(Draft 4:)* in milestone 3 the draft is kept for a new garment only, written when the screen is left, when the app goes to the background and when a save fails, and the photo is encoded once per photo rather than on every write; a draft for editing an existing garment comes with the editor milestone, keyed by the garment, so an edit can never overwrite an add in progress.
 
 ## 7. The outfit builder
 

@@ -2,7 +2,7 @@
    images, with two small caches so cards and pages redraw without decoding again
    (architecture section 4). */
 
-const LIMITS = { thumb: 80, full: 12 };
+const LIMITS = { thumb: 80, full: 4 };
 
 function lru(limit, free) {
   const map = new Map();
