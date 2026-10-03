@@ -207,7 +207,9 @@ export function createStage({ session, handlers }) {
     if (pointers.size > 2) return;
     const img = toImage(e.clientX, e.clientY);
     const now = performance.now();
-    const isDouble = lastTap && now - lastTap.at < DOUBLE_TAP_MS && Math.hypot(lastTap.x - e.clientX, lastTap.y - e.clientY) < 24;
+    /* a double tap zooms with the Move tool only: with a brush two quick taps are two dabs, and
+       with the Wand two taps are two taps */
+    const isDouble = st.tool === 'move' && lastTap && now - lastTap.at < DOUBLE_TAP_MS && Math.hypot(lastTap.x - e.clientX, lastTap.y - e.clientY) < 24;
     if (isDouble) {
       lastTap = null;
       gesture = { kind: 'doubletap' };
@@ -287,7 +289,6 @@ export function createStage({ session, handlers }) {
       return;
     }
     if (g.kind === 'tap' && p && !p.moved) {
-      lastTap = { at: performance.now(), x: e.clientX, y: e.clientY };
       lastAction = Promise.resolve(handlers.tap(toImage(e.clientX, e.clientY)));
       return;
     }

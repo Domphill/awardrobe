@@ -277,3 +277,13 @@ button {
     transition-duration: 0.01ms !important;
   }
 }
+/* a tap on a button is a tap: no browser double-tap zoom and no 300 ms wait */
+button,
+[role='button'] {
+  touch-action: manipulation;
+}
+/* a button that has nothing to do at the moment looks dimmed but still answers a tap with a message */
+.btn[aria-disabled='true'],
+.icon-btn[aria-disabled='true'] {
+  opacity: 0.45;
+}

@@ -413,8 +413,10 @@ function createLive({ app, router, shell }, key, existing) {
     if (stage) stage.destroy();
     stage = createStage({ session, handlers });
     tools = createTools({ session, stage, run });
-    els.undo = btn('Undo', () => run('undo'), { icon: 'undo', id: 'edit-undo', small: true });
-    els.redo = iconBtn('redo', 'Redo', () => run('redo'), { id: 'edit-redo' });
+    /* never disabled: a tap on a disabled button is handed to the stage underneath, where two
+       quick taps zoomed and a brush left a dot (found on the phone); a tap with nothing to do says so */
+    els.undo = btn('Undo', () => (session.undoLabel && !busyNow() ? run('undo') : toast(busyNow() ? 'One moment, the photo is still being worked on.' : 'Nothing to undo.')), { icon: 'undo', id: 'edit-undo', small: true });
+    els.redo = iconBtn('redo', 'Redo', () => (session.redoLabel && !busyNow() ? run('redo') : toast(busyNow() ? 'One moment, the photo is still being worked on.' : 'Nothing to redo.')), { id: 'edit-redo' });
     els.fileCamera = h('input#file-camera', { type: 'file', accept: 'image/*', capture: 'environment', hidden: true, onchange: onPick });
     els.fileLibrary = h('input#file-library', { type: 'file', accept: 'image/*', hidden: true, onchange: onPick });
     els.take = btn('Take a photo', () => els.fileCamera.click(), { kind: 'primary', icon: 'camera', id: 'photo-take' });
@@ -675,10 +677,10 @@ function createLive({ app, router, shell }, key, existing) {
     els.strength.disabled = !has || busy || st.choice === true;
     els.undo.lastChild.textContent = session.undoLabel || 'Undo';
     els.undo.setAttribute('aria-label', session.undoLabel || 'Undo');
-    els.undo.disabled = busy || !session.undoLabel;
+    els.undo.setAttribute('aria-disabled', String(busy || !session.undoLabel));
     els.redo.setAttribute('aria-label', session.redoLabel || 'Redo');
     els.redo.title = session.redoLabel || 'Redo';
-    els.redo.disabled = busy || !session.redoLabel;
+    els.redo.setAttribute('aria-disabled', String(busy || !session.redoLabel));
     els.whole.checked = !!st.wholePhoto;
     els.whole.disabled = !has || busy;
     els.take.disabled = busy;

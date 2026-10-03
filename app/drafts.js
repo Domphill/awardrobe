@@ -51,7 +51,6 @@ export function createDrafts(records) {
           })
           .catch((e) => {
             failed = e;
-            console.error('draft:', e);
             if (api.onError) api.onError(e);
           });
       }
