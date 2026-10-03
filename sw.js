@@ -57,6 +57,9 @@ const FILES = [
   'infra/platform.js',
   'infra/image-pipeline.js',
   'infra/image-worker.js',
+  'infra/image-document.js',
+  'domain/commands.js',
+  'domain/image/geometry.js',
   'infra/worker-client.js',
   'infra/decode.js'
 ];

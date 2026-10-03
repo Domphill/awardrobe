@@ -4,6 +4,16 @@ import { decodeFile, finalizeCutout, finalizePhoto } from './image-pipeline.js';
 import { autoCutout } from '../domain/image/segment.js';
 import { extractColours } from '../domain/colour/palette.js';
 import { shapeFeatures } from '../domain/image/shape.js';
+import { createDocument } from './image-document.js';
+
+/* the editing document: one per worker, its requests run one after another */
+const document = createDocument();
+let queue = Promise.resolve();
+const serial = (fn) => (payload) => {
+  const run = queue.then(() => fn(payload));
+  queue = run.catch(() => {});
+  return run;
+};
 
 const handlers = {
   ping: async () => ({ result: { ok: true } }),
@@ -20,7 +30,14 @@ const handlers = {
   finalize: async ({ rgba, mask, width, height, opts }) => ({ result: await finalizeCutout(rgba, mask, width, height, opts) }),
   finalizePhoto: async ({ rgba, width, height }) => ({ result: await finalizePhoto(rgba, width, height) }),
   colours: async ({ rgba, alpha, width, height, bg, count }) => ({ result: extractColours(rgba, alpha, width, height, { bg, count }) }),
-  shape: async ({ mask, width, height }) => ({ result: shapeFeatures(mask, width, height) })
+  shape: async ({ mask, width, height }) => ({ result: shapeFeatures(mask, width, height) }),
+  docOpen: serial((p) => document.open(p)),
+  docClose: serial(() => document.close()),
+  docState: serial(() => document.state()),
+  docSnapshot: serial(() => document.snapshot()),
+  docCommand: serial((p) => document.command(p)),
+  docUndo: serial(() => document.undo()),
+  docRedo: serial(() => document.redo())
 };
 
 self.onmessage = async (e) => {

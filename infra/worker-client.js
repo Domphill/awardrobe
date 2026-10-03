@@ -35,8 +35,13 @@ export function createImageWorker() {
       if (!p) return;
       clearTimeout(p.timer);
       pending.delete(id);
-      if (ok) p.resolve(unpack(result));
-      else {
+      if (ok) {
+        try {
+          p.resolve(unpack(result));
+        } catch (x) {
+          p.reject(x);
+        }
+      } else {
         const err = new Error(error || 'The photo tools failed.');
         err.name = kind === 'ImageError' ? 'ImageError' : 'WorkerError';
         p.reject(err);
@@ -55,7 +60,8 @@ export function createImageWorker() {
   };
   /* pixels come back as a bare array with a size; give callers an ImageData */
   const unpack = (r) => {
-    if (r && r.rgba && r.width && r.height && !r.work) r.work = new ImageData(r.rgba, r.width, r.height);
+    /* a reply that carries only a rectangle of pixels is left as it is */
+    if (r && r.rgba && r.width && r.height && !r.work && !r.rect && r.rgba.length === r.width * r.height * 4) r.work = new ImageData(r.rgba, r.width, r.height);
     return r;
   };
   return {
