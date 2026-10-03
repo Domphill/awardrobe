@@ -7,7 +7,7 @@ import { HEIC_HINT } from '../infra/image-pipeline.js';
 import { decodeBlob } from './pictures.js';
 
 const HISTORY_LIMIT = 20;
-const SNAP_KEYS = ['mask', 'coverage', 'lowContrast', 'separation', 'bg', 'method', 'autoWhole', 'strength', 'choice', 'wholePhoto'];
+const SNAP_KEYS = ['mask', 'coverage', 'lowContrast', 'separation', 'bg', 'method', 'autoWhole', 'extreme', 'strength', 'choice', 'wholePhoto'];
 const DRAFT_KEYS = ['width', 'height', 'original', 'strength', 'choice', 'autoWhole', 'coverage', 'lowContrast', 'separation', 'bg', 'method', 'colours', 'shape', 'guess', 'opens'];
 /* with no cut-out, the colours are read from the middle of the picture, where the garment is */
 const CENTRE_FROM = 0.22;
@@ -32,6 +32,7 @@ export function createSession(app) {
     bg: null,
     method: null,
     autoWhole: false,
+    extreme: null,
     choice: null,
     wholePhoto: false,
     strength: 50,
@@ -85,9 +86,10 @@ export function createSession(app) {
       }
     }
   }
-  async function segmentNow(strength) {
+  /* the first pass may keep the whole photo (FR-27); a strength the user chose shows its result */
+  async function segmentNow(strength, first) {
     const rgba = rgbaCopy();
-    const r = await worker.call('segment', { rgba, width: s.width, height: s.height, strength }, [rgba.buffer]);
+    const r = await worker.call('segment', { rgba, width: s.width, height: s.height, strength, keepWhole: !!first }, [rgba.buffer]);
     s.mask = r.mask || null;
     s.coverage = r.coverage || 0;
     s.lowContrast = !!r.lowContrast;
@@ -95,6 +97,7 @@ export function createSession(app) {
     s.bg = r.bg || null;
     s.method = r.method || null;
     s.autoWhole = !!r.wholePhoto;
+    s.extreme = r.extreme || null;
     s.strength = strength;
     s.wholePhoto = effectiveWhole();
     dropPreview();
@@ -165,7 +168,7 @@ export function createSession(app) {
         s.status = 'cutting';
         s.busy = 'Cutting it out…';
         emit();
-        await segmentNow(50);
+        await segmentNow(50, true);
         await detect();
         s.status = 'ready';
         s.busy = null;
@@ -189,7 +192,7 @@ export function createSession(app) {
       s.error = null;
       try {
         await working('Cutting it out…', async () => {
-          await segmentNow(v);
+          await segmentNow(v, false);
           s.dirty = true;
         });
       } catch (e) {
@@ -323,7 +326,7 @@ export function createSession(app) {
       emit();
     },
     reset() {
-      Object.assign(s, { status: 'empty', busy: null, error: null, work: null, original: null, mask: null, coverage: 0, lowContrast: false, separation: null, bg: null, method: null, autoWhole: false, choice: null, wholePhoto: false, strength: 50, colours: [], shape: null, guess: null, history: [], future: [], dirty: false });
+      Object.assign(s, { status: 'empty', busy: null, error: null, work: null, original: null, mask: null, coverage: 0, lowContrast: false, separation: null, bg: null, method: null, autoWhole: false, extreme: null, choice: null, wholePhoto: false, strength: 50, colours: [], shape: null, guess: null, history: [], future: [], dirty: false });
       dropPreview();
       emit();
     }

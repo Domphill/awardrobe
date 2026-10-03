@@ -1,6 +1,6 @@
 # aWardrobe: Test Plan
 
-Phase 4 of 5. Draft 4, 2 October 2026. Draft 1 was approved on 1 October 2026; Draft 2 added the tests from `05-plan.md` section 12 (U-SEG-11, U-SEG-12, U-MOD-11, U-SRCH-6, C-9, and steps in E-1, E-10 and E-16) and the small harness-level tests for the database, formatting and routing modules that building milestone 1 showed were worth having (section 3.16). Draft 3 records the tests the milestone 2 review added: U-SEG-13 to U-SEG-19, U-EDGE-6, the thumbnail check in U-EDGE-5, the pastel cases in U-COL-5, the reversed strong-bulb case in U-COL-4, and the unit-level part of P-1. Draft 4 records milestone 3: the scenarios for adding, finding and deleting garments live in `dev/e2e-garments.js`, the performance tests in `dev/perf.js`, seeded closets and photo files in `dev/fixtures.js`, and `dev/scenario.ps1` runs one scenario by name; the changes to E-1, E-10, E-17 and P-8 are noted in place. Nothing else changed.
+Phase 4 of 5. Draft 4, 2 October 2026. Draft 1 was approved on 1 October 2026; Draft 2 added the tests from `05-plan.md` section 12 (U-SEG-11, U-SEG-12, U-MOD-11, U-SRCH-6, C-9, and steps in E-1, E-10 and E-16) and the small harness-level tests for the database, formatting and routing modules that building milestone 1 showed were worth having (section 3.16). Draft 3 records the tests the milestone 2 review added: U-SEG-13 to U-SEG-19, U-EDGE-6, the thumbnail check in U-EDGE-5, the pastel cases in U-COL-5, the reversed strong-bulb case in U-COL-4, and the unit-level part of P-1. Draft 4 records milestone 3: the scenarios for adding, finding and deleting garments live in `dev/e2e-garments.js`, the performance tests in `dev/perf.js`, seeded closets and photo files in `dev/fixtures.js`, and `dev/scenario.ps1` runs one scenario by name; the changes to E-1, E-10, E-17 and P-8 are noted in place. After the first phone checks it adds U-SEG-20 to U-SEG-22 (a garment touching all four edges, the FR-27 amendment, and real photos from `dev/real-photos` run and reported; `dev/try-photo.ps1` shows one such photo at three strengths). Nothing else changed.
 
 ## 0. How to read this
 
@@ -115,6 +115,9 @@ Each line is one test: id, what it checks, and what it covers. Files are named a
 - **U-SEG-17** T1 with an orientation tag, as a phone held sideways writes it: both decode paths give a landscape working copy and the neck ends up on the right. Covers FR-21.
 - **U-SEG-18** a text file offered as a photo: both paths refuse it with the HEIC message and the worker stays alive. Covers FR-28.
 - **U-SEG-19** a worker that never answers: the call fails with "took too long" within its limit, the worker is replaced, and the next call works. Covers NFR-26.
+- **U-SEG-20** T14, a striped shirt whose sleeves, collar and hem cross all four edges of a white photo: the main method, overlap at least 0.85, no warning, and the background model keeps at most two shades. Covers FR-24.
+- **U-SEG-21** the whole-photo rule applies to the first automatic pass only: T6 at the first pass is a whole photo, the same picture at a chosen strength returns its real, nearly empty mask; T1 at strength 100 stays a cut-out. Covers FR-27.
+- **U-SEG-22** every photo in `dev/real-photos` (the user's own, kept out of git) is run and reported with its method, coverage and separation; no threshold. Covers FR-24.
 - **P-1 (unit part)** T1 at 12 megapixels: open plus cut-out in the worker under 1,000 ms on the PC, printed for the report; the full P-1, to the first preview frame, comes with milestone 3. Covers NFR-7.
 
 ### 3.3 Mask operations (`mask.test.js`: `domain/image/mask.js`, `skin.js`)
@@ -392,10 +395,10 @@ Generated from the "Covers" lines above and from the use-case traceability in `0
 | FR-21 | U-SEG-12, U-SEG-17, E-1, E-11, M-6 |
 | FR-22 | U-RAS-4, E-1, E-11 |
 | FR-23 | U-SEG-1, U-SEG-8, E-1, E-11, M-5, T1, T8 |
-| FR-24 | U-SEG-1, U-SEG-2, U-SEG-3, U-SEG-7, U-SEG-9, U-SEG-13, U-MASK-3, U-MASK-4, E-1, E-11, M-7, T1, T2, T3, T7, T10 |
+| FR-24 | U-SEG-1, U-SEG-2, U-SEG-3, U-SEG-7, U-SEG-9, U-SEG-13, U-SEG-20, U-SEG-22, U-MASK-3, U-MASK-4, E-1, E-11, M-7, T1, T2, T3, T7, T10, T14 |
 | FR-25 | U-SEG-6, E-1, E-2 |
 | FR-26 | U-SEG-4, U-SEG-10, U-SEG-14, U-SEG-15, U-SEG-16, E-1, E-2, M-7, T4, T9, T11, T12, T13 |
-| FR-27 | U-SEG-5, U-SEG-8, U-SEG-11, U-MASK-6, E-1, T6, T8 |
+| FR-27 | U-SEG-5, U-SEG-8, U-SEG-11, U-SEG-21, U-MASK-6, E-1, T6, T8 |
 | FR-28 | U-SEG-18, E-1 |
 | FR-29 | E-1, E-2 |
 | FR-30 | U-MASK-6, U-EDGE-1, U-EDGE-2, U-EDGE-3, U-EDGE-4, U-EDGE-5, U-EDGE-6, U-PNG-1, E-1, E-2 |

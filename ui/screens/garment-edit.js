@@ -11,6 +11,8 @@ import { suggestName, ValidationError } from '../../app/garments.js';
 
 const WARN_PALE = 'This garment and its background look alike (pale on pale), so the cut-out may be rough. A darker background helps, or use the Select brush when the editing tools arrive.';
 const WARN_WHOLE = 'The whole photo was kept, because the cut-out would have removed almost everything or almost nothing. You can try another strength or keep it as it is.';
+const WARN_EMPTY = 'At this strength almost everything is removed. Move the strength towards keep more, or tick keep the whole photo.';
+const WARN_FULL = 'At this strength almost nothing is removed. Move the strength towards remove more.';
 const MAX_COLOURS = 3;
 const NO_ARTICLE = ['Bottoms', 'Shoes', 'Outerwear', 'Jewellery'];
 const withArticle = (one) => (NO_ARTICLE.includes(one) ? one.toLowerCase() : (/^[aeiou]/i.test(one) ? 'an ' : 'a ') + one.toLowerCase());
@@ -509,6 +511,8 @@ function createLive({ app, router, shell }, key, existing) {
     if (st.error) warnings.push(st.error);
     if (has && st.lowContrast) warnings.push(WARN_PALE);
     if (has && st.autoWhole) warnings.push(WARN_WHOLE);
+    if (has && !st.autoWhole && !st.wholePhoto && st.extreme === 'empty') warnings.push(WARN_EMPTY);
+    if (has && !st.autoWhole && !st.wholePhoto && st.extreme === 'full') warnings.push(WARN_FULL);
     els.warning.hidden = !warnings.length;
     els.warning.textContent = warnings.join(' ');
     els.strength.value = String(st.strength);

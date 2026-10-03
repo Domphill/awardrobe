@@ -25,6 +25,9 @@ const MIN_SHADE_SHARE = 0.01;
 const LOPSIDED_EDGE = 0.8;
 const LOPSIDED_CENTRE = 0.1;
 const LIGHTER_STEP = 0.12;
+const CORNER_BOX = 0.1;
+const CORNER_MIN = 0.15;
+const NEAR_ANCHOR = 0.1;
 const WHOLE_PHOTO_MIN = 0.002;
 const WHOLE_PHOTO_MAX = 0.97;
 
@@ -222,8 +225,13 @@ function modelFrom(a) {
     centres.push(km.centres[i]);
     weights.push(km.weights[i]);
   }
-  /* which edges each shade sits on, and the dominant shade's colour in sRGB */
+  /* which edges each shade sits on, how much of each corner it fills, and the dominant shade's
+     colour in sRGB. The corners matter: whatever fills a corner is background for certain, while
+     a shade that only meets the edges between the corners may be the garment reaching out. */
   const edges = centres.map(() => [0, 0, 0, 0]);
+  const corners = centres.map(() => [0, 0, 0, 0]);
+  const cornerPixels = [0, 0, 0, 0];
+  const box = Math.max(2, Math.round(Math.min(w, h) * CORNER_BOX));
   let top = 0;
   for (let i = 1; i < weights.length; i++) if (weights[i] > weights[top]) top = i;
   const sum = [0, 0, 0];
@@ -234,6 +242,13 @@ function modelFrom(a) {
     const y = (p - x) / w;
     const e = y < band ? 0 : y >= h - band ? 1 : x < band ? 2 : 3;
     edges[bi][e]++;
+    const cx = x < box ? 0 : x >= w - box ? 1 : -1;
+    const cy = y < box ? 0 : y >= h - box ? 1 : -1;
+    if (cx >= 0 && cy >= 0) {
+      const c = cy * 2 + cx;
+      corners[bi][c]++;
+      cornerPixels[c]++;
+    }
     if (bi !== top) continue;
     sum[0] += rgb[p * 4];
     sum[1] += rgb[p * 4 + 1];
@@ -244,7 +259,8 @@ function modelFrom(a) {
     const t = e[0] + e[1] + e[2] + e[3];
     return t ? Math.max(...e) / t : 0;
   });
-  return { centres, weights, edgeShare, dominantRgb: n ? sum.map((v) => Math.round(v / n)) : [128, 128, 128] };
+  const cornerShare = corners.map((c) => Math.max(...c.map((v, k) => (cornerPixels[k] ? v / cornerPixels[k] : 0))));
+  return { centres, weights, edgeShare, cornerShare, dominantRgb: n ? sum.map((v) => Math.round(v / n)) : [128, 128, 128] };
 }
 
 export const leanFor = (strength) => {
@@ -265,7 +281,11 @@ export function segment(img, opts) {
      the edge of the photo (a hem on the bottom edge), not the background: drop it */
   const centreShare = bg.centres.map(() => 0);
   for (const p of cIdx) centreShare[nearestIndex(lab, p, bg.centres)]++;
-  let bgLit = bg.centres.filter((c, i) => !(bg.edgeShare[i] >= LOPSIDED_EDGE && centreShare[i] / cIdx.length >= LOPSIDED_CENTRE));
+  /* and a shade that fills no corner, and is not close to one that does, is something reaching
+     the edges from the middle (a shirt whose sleeves, collar and hem all cross the frame) */
+  const anchored = bg.centres.filter((c, i) => bg.cornerShare[i] >= CORNER_MIN);
+  const nearAnchor = (c) => !anchored.length || anchored.some((a) => cdist(a, c) < NEAR_ANCHOR);
+  let bgLit = bg.centres.filter((c, i) => !(bg.edgeShare[i] >= LOPSIDED_EDGE && centreShare[i] / cIdx.length >= LOPSIDED_CENTRE) && (bg.cornerShare[i] >= CORNER_MIN || nearAnchor(c)));
   if (!bgLit.length) bgLit = bg.centres;
   /* the garment: middle pixels that are not any background shade. Lightness counts less, so a
      shadow on the sheet does not pass as garment; but a pixel clearly lighter than every
@@ -366,7 +386,7 @@ export function segment(img, opts) {
   if (cl) upsampleScore(score, cw, ch, mask, img.width, img.height);
   else for (let p = 0; p < mask.length; p++) mask[p] = score[p] > 0 ? 255 : 0;
   tidy(mask, img.width, img.height);
-  const diag = { tier, clear, faint, centre: cIdx.length, shades: bg.centres.length, dropped: bg.centres.length - bgLit.length, bands: bg.centres.map((c, i) => [+bg.edgeShare[i].toFixed(2), +(centreShare[i] / cIdx.length).toFixed(2), +c[0].toFixed(3)]) };
+  const diag = { tier, clear, faint, centre: cIdx.length, shades: bg.centres.length, dropped: bg.centres.length - bgLit.length, anchored: anchored.length, bands: bg.centres.map((c, i) => [+bg.edgeShare[i].toFixed(2), +(centreShare[i] / cIdx.length).toFixed(2), +bg.cornerShare[i].toFixed(2), +c[0].toFixed(3)]) };
   return { mask, coverage: coverage(mask), lowContrast, separation, bg: bg.dominantRgb, bgCentres: bgLit, fgCentres: fg.centres, method: 'seg-2', diag };
 }
 
@@ -428,14 +448,18 @@ export function floodCutout(img, strength) {
 }
 
 /* What the app runs when a photo arrives: the main method, else the flood fill, else keep the
-   whole photo when almost nothing or almost everything would be left (FR-27). */
+   whole photo when almost nothing or almost everything would be left (FR-27). With keepWhole
+   false (a strength the user chose), the real result comes back whatever its size, marked
+   `extreme` so the screen can say so. */
 export function autoCutout(img, opts) {
   opts = opts || {};
   const strength = opts.strength === undefined ? 50 : opts.strength;
+  const keepWhole = opts.keepWhole !== false;
   let r = segment(img, { strength });
   if (!r) r = floodCutout(img, strength);
-  if (r.coverage < WHOLE_PHOTO_MIN || r.coverage > WHOLE_PHOTO_MAX) {
-    return { mask: null, method: 'photo', wholePhoto: true, coverage: r.coverage, lowContrast: r.lowContrast, separation: r.separation, bg: r.bg, diag: r.diag };
+  const extreme = r.coverage < WHOLE_PHOTO_MIN ? 'empty' : r.coverage > WHOLE_PHOTO_MAX ? 'full' : null;
+  if (extreme && keepWhole) {
+    return { mask: null, method: 'photo', wholePhoto: true, extreme, coverage: r.coverage, lowContrast: r.lowContrast, separation: r.separation, bg: r.bg, diag: r.diag };
   }
-  return Object.assign({ wholePhoto: false }, r);
+  return Object.assign({ wholePhoto: false, extreme }, r);
 }

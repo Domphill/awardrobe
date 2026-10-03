@@ -13,8 +13,8 @@ const handlers = {
     const d = await decodeFile(file, { workSide, originalSide });
     return { result: { rgba: d.work.data, width: d.width, height: d.height, original: d.original, originalWidth: d.originalWidth, originalHeight: d.originalHeight, decodedIn: 'worker' }, transfer: [d.work.data.buffer] };
   },
-  segment: async ({ rgba, width, height, strength }) => {
-    const r = autoCutout(new ImageData(rgba, width, height), { strength });
+  segment: async ({ rgba, width, height, strength, keepWhole }) => {
+    const r = autoCutout(new ImageData(rgba, width, height), { strength, keepWhole });
     return { result: r, transfer: r.mask ? [r.mask.buffer] : [] };
   },
   finalize: async ({ rgba, mask, width, height, opts }) => ({ result: await finalizeCutout(rgba, mask, width, height, opts) }),
