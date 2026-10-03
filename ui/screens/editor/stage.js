@@ -188,6 +188,9 @@ export function createStage({ session, handlers }) {
   const onDown = (e) => {
     if (!imageSize()) return;
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    /* the Undo and Redo buttons and the empty-stage buttons sit on the stage: a finger on them is
+       not a stroke (found on the phone: Undo with the Eraser active undid its own dot) */
+    if (e.target && e.target !== el && e.target !== view && e.target !== overlay && e.target.closest && e.target.closest('button, .stage-tools, .stage-empty, input, label')) return;
     try {
       el.setPointerCapture(e.pointerId);
     } catch (err) {

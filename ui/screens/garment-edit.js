@@ -159,27 +159,43 @@ function createLive({ app, router, shell }, key, existing) {
     tools.setTool('move');
     update();
   };
-  /* redo the cut-out from the reduced original of a saved garment (FR-31) */
-  const redoFromOriginal = async () => {
+  /* the reduced original of a saved garment opened in the editor (FR-31): either carrying on with
+     the saved cut-out (its alpha put back in place, strength and brush fixes kept) or redoing the
+     automatic cut-out afresh */
+  const openOriginal = async (carryOn) => {
     if (!existing || !existing.pictures || !existing.pictures.original || busyNow()) return;
     const rec = await app.pictures.record(existing.pictures.original);
     if (!rec) {
       toast('The reduced original of this garment could not be found.');
       return;
     }
+    let seed = null;
+    if (carryOn && existing.cutout) {
+      if (existing.cutout.kind === 'photo') seed = { wholePhoto: true, strength: existing.cutout.strength };
+      else {
+        const cut = await app.pictures.record(existing.pictures.cutout);
+        seed = cut && cut.alpha ? { alpha: cut.alpha, box: existing.cutout.box, work: existing.cutout.work, strength: existing.cutout.strength } : null;
+      }
+    }
     stage.setStatic(null);
+    let opened = null;
     try {
-      await session.openFromPicture(rec);
+      opened = await session.openFromPicture(rec, seed ? { seed } : {});
     } catch (e) {
       update();
       return;
     }
     tools.setTool('move');
-    chosen.colours = false;
-    applyGuess();
+    if (carryOn && !(opened && opened.seeded)) toast('The cut-out was made again from the original at its saved strength; the brush fixes from before could not be placed.');
+    if (!carryOn || !(opened && opened.seeded)) {
+      chosen.colours = false;
+      applyGuess();
+    }
     scheduleDraft();
     update();
   };
+  const redoFromOriginal = () => openOriginal(false);
+  const editCutout = () => openOriginal(true);
 
   /* ---------- the tools ---------- */
   const say = (r) => {
@@ -367,6 +383,7 @@ function createLive({ app, router, shell }, key, existing) {
     cropBox: (box) => (box ? stage.setCropBox(box) : stage.getCropBox()),
     pressOriginal: (on) => stage.showOriginal(on),
     openFromOriginal: redoFromOriginal,
+    editCutout,
     crashTools: () => session.crashTools(),
     setStrength: async (v) => {
       say(await session.setStrength(v));
@@ -402,7 +419,19 @@ function createLive({ app, router, shell }, key, existing) {
     els.fileLibrary = h('input#file-library', { type: 'file', accept: 'image/*', hidden: true, onchange: onPick });
     els.take = btn('Take a photo', () => els.fileCamera.click(), { kind: 'primary', icon: 'camera', id: 'photo-take' });
     els.choose = btn('Choose a photo', () => els.fileLibrary.click(), { icon: 'image', id: 'photo-choose' });
-    els.stageEmpty = h('div.stage-empty', icon('camera'), h('p', existing ? 'Take or choose a new photo to replace this one, or keep it as it is.' : 'Lay the garment flat on a plain background, like a bed sheet or a wall, and photograph it from above.'), h('div.actions.center', els.take, els.choose));
+    const hasOriginal = !!(existing && existing.pictures && existing.pictures.original);
+    els.editCutout = hasOriginal ? btn('Edit the cut-out', editCutout, { kind: 'primary', icon: 'edit', id: 'edit-cutout' }) : null;
+    if (hasOriginal) {
+      els.take = btn('Take a photo', () => els.fileCamera.click(), { icon: 'camera', id: 'photo-take', small: true });
+      els.choose = btn('Choose a photo', () => els.fileLibrary.click(), { icon: 'image', id: 'photo-choose', small: true });
+    }
+    els.stageEmpty = h(
+      'div.stage-empty',
+      icon('camera'),
+      h('p', existing ? (hasOriginal ? 'Carry on with this cut-out, or replace the photo.' : 'Take or choose a new photo to replace this one, or keep it as it is.') : 'Lay the garment flat on a plain background, like a bed sheet or a wall, and photograph it from above.'),
+      els.editCutout ? h('div.actions.center', els.editCutout) : null,
+      h('div.actions.center', els.take, els.choose)
+    );
     els.busy = h('div.stage-busy', { role: 'status', 'aria-live': 'polite', hidden: true }, h('div.spinner'), h('span'));
     els.stage = stage.el;
     els.stage.append(els.stageEmpty, h('div.stage-tools', els.undo, els.redo), els.busy, els.fileCamera, els.fileLibrary);
@@ -656,6 +685,7 @@ function createLive({ app, router, shell }, key, existing) {
     els.choose.disabled = busy;
     els.different.disabled = busy;
     if (els.redoOriginal) els.redoOriginal.disabled = busy;
+    if (els.editCutout) els.editCutout.disabled = busy;
     for (const b of root.querySelectorAll('#remove-skin, #cut-again, #colours-again, #show-original')) b.disabled = busy || !has;
     tools.disable(!has);
     els.actions.hidden = !has && !existing;

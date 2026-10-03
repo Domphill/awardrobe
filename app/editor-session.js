@@ -81,6 +81,11 @@ export function createSession(app) {
     return m;
   };
   const effectiveWhole = () => (s.choice === null ? s.autoWhole : s.choice);
+  const coverageOf = (m) => {
+    let n = 0;
+    for (let i = 0; i < m.length; i++) if (m[i] > 127) n++;
+    return m.length ? n / m.length : 0;
+  };
   const freeCanvas = (c) => {
     if (c) {
       c.width = 0;
@@ -121,9 +126,10 @@ export function createSession(app) {
     }
   }
   /* the first automatic pass, which may keep the whole photo (FR-27) */
-  async function firstCut() {
+  async function firstCut(strength) {
+    strength = strength === undefined ? 50 : strength;
     const rgba = rgbaCopy();
-    const r = await worker.call('segment', { rgba, width: s.width, height: s.height, strength: 50, keepWhole: true }, [rgba.buffer]);
+    const r = await worker.call('segment', { rgba, width: s.width, height: s.height, strength, keepWhole: true }, [rgba.buffer]);
     s.mask = r.mask || null;
     s.coverage = r.coverage || 0;
     s.lowContrast = !!r.lowContrast;
@@ -132,10 +138,33 @@ export function createSession(app) {
     s.method = r.method || null;
     s.autoWhole = !!r.wholePhoto;
     s.extreme = null;
-    s.strength = 50;
+    s.strength = strength;
     s.wholePhoto = effectiveWhole();
     rev.pixels++;
     rev.mask++;
+  }
+  /* a saved cut-out's alpha put back where it sat in the working picture (FR-31: carry on with
+     the cut-out as it was, brush fixes and all). The saved working size may differ by a pixel or
+     two from today's decode of the same original, so the box is scaled; a different shape (the
+     picture was turned or cropped before saving) cannot be placed and gives null. */
+  async function seededMask(seed) {
+    if (!seed || !seed.alpha || !seed.box || !seed.work) return null;
+    const sx = s.width / seed.work.width;
+    const sy = s.height / seed.work.height;
+    if (Math.abs(sx - sy) > 0.01) return null;
+    const bmp = await decodeBlob(seed.alpha);
+    const c = document.createElement('canvas');
+    c.width = s.width;
+    c.height = s.height;
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    const b = seed.box;
+    ctx.drawImage(bmp, b.x0 * sx, b.y0 * sy, (b.x1 - b.x0 + 1) * sx, (b.y1 - b.y0 + 1) * sy);
+    const d = ctx.getImageData(0, 0, s.width, s.height).data;
+    const m = new Uint8Array(s.width * s.height);
+    for (let p = 0, i = 0; p < m.length; p++, i += 4) m[p] = d[i + 3] ? d[i] : 0;
+    freeCanvas(c);
+    if (bmp.close) bmp.close();
+    return m;
   }
   async function openDocument() {
     const rgba = rgbaCopy();
@@ -313,12 +342,32 @@ export function createSession(app) {
         s.status = 'cutting';
         s.busy = 'Cutting it out…';
         emit();
-        await firstCut();
+        const seed = opts.seed || null;
+        await firstCut(seed && typeof seed.strength === 'number' ? seed.strength : 50);
+        let seeded = false;
+        if (seed) {
+          if (seed.wholePhoto) {
+            s.choice = true;
+            s.wholePhoto = true;
+            seeded = true;
+          } else {
+            const m = await seededMask(seed);
+            if (m) {
+              s.mask = m;
+              s.autoWhole = false;
+              s.wholePhoto = effectiveWhole();
+              s.coverage = coverageOf(m);
+              rev.mask++;
+              seeded = true;
+            }
+          }
+        }
         await openDocument();
         await detect();
         s.status = 'ready';
         s.busy = null;
         emit();
+        return { seeded };
       } catch (e) {
         s.status = s.work ? 'ready' : 'empty';
         s.busy = null;
@@ -328,9 +377,9 @@ export function createSession(app) {
       }
     },
     /* redo the cut-out of a saved garment from its reduced original (FR-31) */
-    async openFromPicture(rec) {
+    async openFromPicture(rec, opts) {
       if (!rec || !rec.colour) throw new Error('This garment has no reduced original to work from.');
-      return api.open(new File([rec.colour], 'original.jpg', { type: rec.colour.type || 'image/jpeg' }), { keepOriginalId: rec.id });
+      return api.open(new File([rec.colour], 'original.jpg', { type: rec.colour.type || 'image/jpeg' }), Object.assign({ keepOriginalId: rec.id }, opts || {}));
     },
 
     /* ---------- the tools, as commands in the document ---------- */
@@ -556,7 +605,7 @@ export function createSession(app) {
       const mask = maskCopy();
       const out = await worker.call('finalize', { rgba, mask, width: s.width, height: s.height }, [rgba.buffer, mask.buffer]);
       const method = s.method && s.method !== 'photo' ? s.method : 'seg-2';
-      return { kind: 'cutout', cutout: out.cutout, thumb: out.thumb, original, strength: s.strength, method, shape: s.shape, colours: s.colours };
+      return { kind: 'cutout', cutout: out.cutout, thumb: out.thumb, original, strength: s.strength, method, shape: s.shape, colours: s.colours, box: out.box || null, work: { width: s.width, height: s.height } };
     },
 
     /* ---------- the draft (FR-49): photo as JPEG, mask as PNG, selection dropped ---------- */

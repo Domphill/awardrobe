@@ -75,7 +75,7 @@ export function createGarments(app) {
         const keepId = result.original && result.original.keepId ? result.original.keepId : null;
         if (existing && existing.pictures) for (const id of Object.values(existing.pictures)) if (id && id !== keepId) oldIds.push(id);
         rec.pictures = { cutout: cut.id, thumb: th.id, original: orig ? orig.id : keepId };
-        rec.cutout = { kind: result.kind, width: result.cutout.width, height: result.cutout.height, strength: result.strength, method: result.method };
+        rec.cutout = { kind: result.kind, width: result.cutout.width, height: result.cutout.height, strength: result.strength, method: result.method, box: result.box || null, work: result.work || null };
         rec.shape = result.shape || null;
       }
       touch(rec);
