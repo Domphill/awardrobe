@@ -48,7 +48,8 @@ export function createImageWorker() {
       }
     };
     worker.onerror = (e) => {
-      const err = new Error('The photo tools stopped unexpectedly (' + ((e && e.message) || 'unknown error') + ').');
+      console.error('photo tools:', (e && e.message) || e);
+      const err = new Error('The photo tools stopped unexpectedly.');
       err.name = 'WorkerError';
       drop(err);
     };
@@ -100,6 +101,12 @@ export function createImageWorker() {
       if (worker) worker.terminate();
       worker = null;
       failAll(new Error('The photo tools were closed.'));
+    },
+    /* for the tests: the photo tools die as they would on a crash, and come back on the next call */
+    crash() {
+      const err = new Error('The photo tools stopped unexpectedly.');
+      err.name = 'WorkerError';
+      drop(err);
     },
     get crashes() {
       return crashes;

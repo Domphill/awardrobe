@@ -11,6 +11,7 @@ const DRAFT_KEYS = ['width', 'height', 'original', 'strength', 'choice', 'autoWh
 /* with no cut-out, the colours are read from the middle of the picture, where the garment is */
 const CENTRE_FROM = 0.22;
 const CENTRE_TO = 0.78;
+const RESTARTED = 'The photo tools restarted; your last change may be lost.';
 export const DEFAULT_OPTIONS = { size: 'medium', tolerance: 30, snap: true, wandMode: 'remove', paintMode: 'dye', dropperTarget: 'garment', angle: 0 };
 
 export function createSession(app) {
@@ -47,8 +48,11 @@ export function createSession(app) {
     dirty: false,
     tool: 'move',
     paintColour: '#c8302c',
+    bytes: 0,
     options: Object.assign({}, DEFAULT_OPTIONS)
   };
+  /* revisions of the pixels and the mask, so the draft encodes only what changed */
+  const rev = { pixels: 0, mask: 0 };
   let preview = null;
   let previewDirty = 'all';
   let originalCanvas = null;
@@ -56,7 +60,7 @@ export function createSession(app) {
   let selDirty = 'all';
   let docOpen = false;
   let stroke = null;
-  const draftCache = { opens: -1, photo: null, mask: null, maskBlob: null, width: 0, height: 0, steps: -1 };
+  const draftCache = { opens: -1, photo: null, pixels: -1, mask: -1, maskBlob: null };
   const emit = () => {
     for (const fn of listeners) {
       try {
@@ -130,6 +134,8 @@ export function createSession(app) {
     s.extreme = null;
     s.strength = 50;
     s.wholePhoto = effectiveWhole();
+    rev.pixels++;
+    rev.mask++;
   }
   async function openDocument() {
     const rgba = rgbaCopy();
@@ -140,6 +146,33 @@ export function createSession(app) {
     s.selection = 0;
     s.labels = r.labels;
     s.steps = r.length || 0;
+    s.bytes = r.bytes || 0;
+  }
+  /* the photo tools died under us: the document is opened again from the preview copies, so the
+     picture and the cut-out as last drawn are kept and only the undo history is lost (section 11) */
+  async function recover() {
+    docOpen = false;
+    stroke = null;
+    try {
+      await openDocument();
+      s.error = RESTARTED;
+    } catch (e) {
+      s.error = (e && e.message) || RESTARTED;
+    }
+    emit();
+  }
+  async function docCall(type, params) {
+    try {
+      return await worker.call(type, params);
+    } catch (e) {
+      if (e && e.name === 'WorkerError' && s.work) {
+        await recover();
+        const err = new Error(RESTARTED);
+        err.name = 'EditorRestarted';
+        throw err;
+      }
+      throw e;
+    }
   }
   async function detect() {
     const rgba = rgbaCopy();
@@ -158,12 +191,15 @@ export function createSession(app) {
   /* a reply from the document, applied to the preview copies */
   function sync(r) {
     if (!r || r.nothing) return;
+    s.error = null;
     const resized = r.size && (r.size.width !== s.width || r.size.height !== s.height);
     if (r.full) {
       if (resized) {
         s.width = r.size.width;
         s.height = r.size.height;
       }
+      if (r.rgba || resized) rev.pixels++;
+      if (r.mask) rev.mask++;
       if (r.rgba) s.work = new ImageData(r.rgba, s.width, s.height);
       if (r.mask) s.mask = r.mask;
       if (r.sel) s.sel = r.sel;
@@ -183,6 +219,8 @@ export function createSession(app) {
           s.sel.set(r.sel.subarray(src, src + rw), dst);
         }
       }
+      if (r.mask) rev.mask++;
+      if (r.rgba) rev.pixels++;
       if (r.mask || r.rgba) previewDirty = unionRect(previewDirty, r.rect);
       if (r.rgba) {
         freeCanvas(originalCanvas);
@@ -192,6 +230,7 @@ export function createSession(app) {
     }
     if (r.labels) s.labels = r.labels;
     if (typeof r.length === 'number') s.steps = r.length;
+    if (typeof r.bytes === 'number') s.bytes = r.bytes;
     if (typeof r.coverage === 'number') s.coverage = r.coverage;
     if (typeof r.strength === 'number') s.strength = r.strength;
     if (r.extreme !== undefined) s.extreme = r.extreme;
@@ -202,7 +241,8 @@ export function createSession(app) {
   }
   const command = async (params) => {
     if (!docOpen || s.status !== 'ready') return { nothing: true, message: 'The photo is still being prepared.' };
-    const r = await worker.call('docCommand', params);
+    if (stroke) await api.endStroke();
+    const r = await docCall('docCommand', params);
     sync(r);
     emit();
     return r;
@@ -224,10 +264,11 @@ export function createSession(app) {
      ready, because the document itself is the one place the work happens */
   const heavy = async (label, params) => {
     if (!docOpen || s.status !== 'ready') return { nothing: true, message: 'The photo is still being prepared.' };
+    if (stroke) await api.endStroke();
     s.busy = label;
     emit();
     try {
-      const r = await worker.call('docCommand', params);
+      const r = await docCall('docCommand', params);
       sync(r);
       return r;
     } finally {
@@ -306,13 +347,22 @@ export function createSession(app) {
       if (stroke) await api.endStroke();
       const o = s.options;
       const params = { type: mode === 'dye' || mode === 'solid' ? 'paint' : 'brush', mode, points, radius, snap: !!o.snap, tolerance: o.tolerance, colour: hexToRgb(s.paintColour) };
+      if (!docOpen || s.status !== 'ready') return { nothing: true, message: 'The photo is still being prepared.' };
       const st = { id: null, queue: [], sending: null, start: null };
       stroke = st;
-      st.start = command(params).then((r) => {
-        if (r && r.strokeId) st.id = r.strokeId;
-        else if (stroke === st) stroke = null;
-        return r;
-      });
+      st.start = docCall('docCommand', params).then(
+        (r) => {
+          sync(r);
+          emit();
+          if (r && r.strokeId) st.id = r.strokeId;
+          else if (stroke === st) stroke = null;
+          return r;
+        },
+        (e) => {
+          if (stroke === st) stroke = null;
+          throw e;
+        }
+      );
       return st.start;
     },
     strokeMore(points) {
@@ -321,24 +371,36 @@ export function createSession(app) {
       st.queue.push(...points);
       if (st.sending) return st.sending;
       st.sending = (async () => {
-        await st.start;
-        while (st.id && st.queue.length) {
-          const batch = st.queue.splice(0, st.queue.length);
-          sync(await worker.call('docCommand', { type: 'brushMore', strokeId: st.id, points: batch }));
-          emit();
+        try {
+          await st.start;
+          while (st.id && st.queue.length && stroke === st && docOpen) {
+            const batch = st.queue.splice(0, st.queue.length);
+            const r = await docCall('docCommand', { type: 'brushMore', strokeId: st.id, points: batch });
+            sync(r);
+            emit();
+            if (r && r.ended) {
+              /* something else changed the picture in the middle of the stroke: it is over */
+              if (stroke === st) stroke = null;
+              break;
+            }
+          }
+        } finally {
+          st.sending = null;
         }
-        st.sending = null;
       })();
       return st.sending;
     },
     async endStroke() {
       const st = stroke;
       if (!st) return null;
-      await st.start;
-      if (st.sending) await st.sending;
-      if (stroke === st) stroke = null;
-      if (!st.id) return null;
-      const r = await worker.call('docCommand', { type: 'brushEnd', strokeId: st.id });
+      try {
+        await st.start;
+        if (st.sending) await st.sending;
+      } finally {
+        if (stroke === st) stroke = null;
+      }
+      if (!st.id || !docOpen) return null;
+      const r = await docCall('docCommand', { type: 'brushEnd', strokeId: st.id });
       sync(r);
       emit();
       return r;
@@ -351,17 +413,23 @@ export function createSession(app) {
     skin: () => heavy('Looking for skin…', { type: 'skin' }),
     async undo() {
       if (!docOpen) return null;
-      const r = await worker.call('docUndo', {});
+      if (stroke) await api.endStroke();
+      const r = await docCall('docUndo', {});
       sync(r);
       emit();
       return r;
     },
     async redo() {
       if (!docOpen) return null;
-      const r = await worker.call('docRedo', {});
+      if (stroke) await api.endStroke();
+      const r = await docCall('docRedo', {});
       sync(r);
       emit();
       return r;
+    },
+    /* for the tests: the photo tools die as on a crash */
+    crashTools() {
+      if (worker.crash) worker.crash();
     },
     get undoLabel() {
       return s.labels.undo;
@@ -372,7 +440,10 @@ export function createSession(app) {
     /* the colour under a point, for the Dropper (FR-42) */
     colourAt(x, y) {
       if (!s.work) return null;
-      const i = (Math.round(y) * s.width + Math.round(x)) * 4;
+      x = Math.round(x);
+      y = Math.round(y);
+      if (x < 0 || y < 0 || x >= s.width || y >= s.height) return null;
+      const i = (y * s.width + x) * 4;
       const d = s.work.data;
       return [d[i], d[i + 1], d[i + 2]];
     },
@@ -491,18 +562,16 @@ export function createSession(app) {
     /* ---------- the draft (FR-49): photo as JPEG, mask as PNG, selection dropped ---------- */
     async toDraft(drafts) {
       if (!s.work) return null;
-      const fresh = draftCache.opens !== s.opens || !draftCache.photo || draftCache.width !== s.width || draftCache.height !== s.height || draftCache.steps !== s.steps;
+      const fresh = draftCache.opens !== s.opens || !draftCache.photo || draftCache.pixels !== rev.pixels;
       if (fresh) {
         draftCache.photo = await drafts.encodePhoto(s.work);
         draftCache.opens = s.opens;
-        draftCache.width = s.width;
-        draftCache.height = s.height;
-        draftCache.steps = s.steps;
-        draftCache.mask = null;
+        draftCache.pixels = rev.pixels;
+        draftCache.mask = -1;
       }
-      if (s.mask && draftCache.mask !== s.mask) {
+      if (s.mask && draftCache.mask !== rev.mask) {
         draftCache.maskBlob = await drafts.encodeMask(s.mask, s.width, s.height);
-        draftCache.mask = s.mask;
+        draftCache.mask = rev.mask;
       }
       const d = { photo: draftCache.photo, mask: s.mask ? draftCache.maskBlob : null };
       for (const k of DRAFT_KEYS) d[k] = s[k];
@@ -536,13 +605,13 @@ export function createSession(app) {
       s.wholePhoto = effectiveWhole();
       s.dirty = true;
       s.error = null;
+      rev.pixels++;
+      rev.mask++;
       draftCache.opens = s.opens;
       draftCache.photo = d.photo;
-      draftCache.width = s.width;
-      draftCache.height = s.height;
-      draftCache.mask = s.mask;
+      draftCache.pixels = rev.pixels;
+      draftCache.mask = s.mask ? rev.mask : -1;
       draftCache.maskBlob = d.mask || null;
-      draftCache.steps = 0;
       dropPreview();
       if (docOpen) worker.call('docClose', {}).catch(() => {});
       docOpen = false;

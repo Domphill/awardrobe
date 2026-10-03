@@ -9,17 +9,17 @@ const BRUSH_TOOLS = ['select', 'paint', 'eraser', 'restore'];
 const TAP_TOOLS = ['wand', 'dropper'];
 const DOUBLE_TAP_MS = 320;
 const TAP_SLOP = 8;
-const HANDLE_PX = 16;
+const HANDLE_PX = 22;
 const DOUBLE_TAP_ZOOM = 3;
 
 export function createStage({ session, handlers }) {
   const view = h('canvas#stage-view', { 'aria-hidden': 'true' });
   const overlay = h('canvas#stage-overlay', { 'aria-hidden': 'true' });
   const ring = h('div#brush-ring', { hidden: true, 'aria-hidden': 'true' });
-  const badge = h('span#zoom-level', { 'aria-live': 'polite' }, '1×');
+  const badge = h('span#zoom-level', '1×');
   const el = h('div.stage.checker#stage', view, overlay, ring, badge);
   const viewport = createViewport({ imageW: 1, imageH: 1, viewW: 1, viewH: 1, dpr: Math.min(3, window.devicePixelRatio || 1) });
-  const st = { tool: 'move', background: 'checker', showingOriginal: false, rotateDeg: 0, cropBox: null, staticImage: null, lastPoints: [], pointerPos: null, lastDrawAt: 0, imageW: 0, imageH: 0 };
+  const st = { tool: 'move', background: 'checker', showingOriginal: false, rotateDeg: 0, cropBox: null, staticImage: null, lastPoints: [], lastDrawAt: 0, imageW: 0, imageH: 0 };
   const pointers = new Map();
   let gesture = null;
   let lastTap = null;
@@ -81,7 +81,9 @@ export function createStage({ session, handlers }) {
       layout();
       return;
     }
-    ctx.imageSmoothingEnabled = true;
+    /* zoomed past one image pixel a screen pixel, the pixels are drawn crisp so the user sees
+       what the brush will touch; shrunk, the picture is smoothed */
+    ctx.imageSmoothingEnabled = viewport.scale <= 1;
     ctx.imageSmoothingQuality = 'high';
     const t = viewport.canvasTransform();
     ctx.setTransform(t[0], t[1], t[2], t[3], t[4], t[5]);
@@ -185,6 +187,7 @@ export function createStage({ session, handlers }) {
   /* ---------- pointers ---------- */
   const onDown = (e) => {
     if (!imageSize()) return;
+    if (e.pointerType === 'mouse' && e.button !== 0) return;
     try {
       el.setPointerCapture(e.pointerId);
     } catch (err) {
@@ -217,7 +220,7 @@ export function createStage({ session, handlers }) {
         return;
       }
     }
-    if (BRUSH_TOOLS.includes(st.tool) && !st.staticImage) {
+    if (BRUSH_TOOLS.includes(st.tool) && !st.staticImage && !session.state.busy) {
       gesture = { kind: 'stroke' };
       showRing(e.clientX, e.clientY);
       beginStroke(img);
@@ -357,7 +360,7 @@ export function createStage({ session, handlers }) {
       st.tool = tool;
       if (tool === 'crop' && !st.cropBox) api.resetCropBox();
       if (tool !== 'rotate') st.rotateDeg = 0;
-      ring.hidden = !BRUSH_TOOLS.includes(tool) || !st.pointerPos;
+      ring.hidden = true;
       el.dataset.tool = tool;
       draw();
     },

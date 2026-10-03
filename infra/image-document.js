@@ -103,33 +103,40 @@ export function createDocument() {
     doc.selCount = countSel();
   };
   /* a command whose record is the mask (and selection) before and after */
+  const flags = () => ({ strength: doc.strength, extreme: doc.extreme || null, lowContrast: !!doc.lowContrast });
+  const setFlags = (f) => {
+    doc.strength = f.strength;
+    doc.extreme = f.extreme;
+    doc.lowContrast = f.lowContrast;
+  };
   const maskCommand = (label, change, opts) => {
     opts = opts || {};
     const before = maskSnapshot();
     const selBefore = opts.sel ? selSnapshot() : null;
-    const strengthBefore = doc.strength;
+    const flagsBefore = flags();
     const cmd = {
       label,
       bytes: before.byteLength + (selBefore ? selBefore.byteLength : 0),
       after: null,
       selAfter: null,
-      strengthAfter: null,
+      flagsAfter: null,
       run: change,
       undo() {
-        cmd.after = maskSnapshot();
-        if (opts.sel) cmd.selAfter = selSnapshot();
-        cmd.strengthAfter = doc.strength;
-        cmd.bytes += cmd.after.byteLength + (cmd.selAfter ? cmd.selAfter.byteLength : 0);
+        /* the after record is taken the first time only; redo puts the same bytes back */
+        if (!cmd.after) {
+          cmd.after = maskSnapshot();
+          if (opts.sel) cmd.selAfter = selSnapshot();
+          cmd.flagsAfter = flags();
+          cmd.bytes += cmd.after.byteLength + (cmd.selAfter ? cmd.selAfter.byteLength : 0);
+        }
         restoreMask(before);
         if (opts.sel) restoreSel(selBefore);
-        doc.strength = strengthBefore;
-        cmd.touches = { mask: true, sel: !!opts.sel };
+        setFlags(flagsBefore);
       },
       redo() {
         restoreMask(cmd.after);
         if (opts.sel) restoreSel(cmd.selAfter);
-        doc.strength = cmd.strengthAfter;
-        cmd.touches = { mask: true, sel: !!opts.sel };
+        setFlags(cmd.flagsAfter);
       },
       touches: { mask: true, sel: !!opts.sel }
     };
@@ -142,41 +149,58 @@ export function createDocument() {
     let rect = null;
     const r = reach || stroke.radius;
     const step = Math.max(1, stroke.radius / 2);
+    const W = w();
+    const H = h();
+    /* a disc wholly outside the picture (a finger in the letterbox margin) is skipped */
+    const disc = (x, y) => {
+      if (x < -r || y < -r || x > W + r || y > H + r) return;
+      stroke.inside = true;
+      fn(x, y);
+      rect = unionRect(rect, clampRect(x - r - 1, y - r - 1, x + r + 1, y + r + 1));
+    };
     for (const p of points) {
       const last = stroke.last;
       if (last) {
         const dist = Math.hypot(p.x - last.x, p.y - last.y);
         const steps = Math.max(1, Math.ceil(dist / step));
-        for (let k = 1; k <= steps; k++) {
-          const x = last.x + ((p.x - last.x) * k) / steps;
-          const y = last.y + ((p.y - last.y) * k) / steps;
-          fn(x, y);
-          rect = unionRect(rect, clampRect(x - r - 1, y - r - 1, x + r + 1, y + r + 1));
-        }
-      } else {
-        fn(p.x, p.y);
-        rect = unionRect(rect, clampRect(p.x - r - 1, p.y - r - 1, p.x + r + 1, p.y + r + 1));
-      }
+        for (let k = 1; k <= steps; k++) disc(last.x + ((p.x - last.x) * k) / steps, last.y + ((p.y - last.y) * k) / steps);
+      } else disc(p.x, p.y);
       stroke.last = p;
     }
-    return rect || clampRect(0, 0, 1, 1);
+    return rect;
   };
+  /* each apply returns the rectangle that changed, or null when the batch changed no pixel */
   const applyMaskStroke = (stroke, points) => {
     const value = stroke.mode === 'restore' ? 255 : 0;
-    return discsAlong(stroke, points, (x, y) => paintDisc(doc.mask, w(), h(), x, y, stroke.radius, value));
+    let n = 0;
+    const rect = discsAlong(stroke, points, (x, y) => {
+      n += paintDisc(doc.mask, w(), h(), x, y, stroke.radius, value);
+    });
+    return n ? rect : null;
   };
   const applySelectStroke = (stroke, points) => {
     const reach = stroke.snap ? stroke.radius * SNAP_REACH : stroke.radius;
     const tol = stroke.snap ? stroke.tolerance : null;
-    return discsAlong(stroke, points, (x, y) => {
-      doc.selCount += smartSelect(doc.rgba, w(), h(), doc.mask, doc.sel, x, y, reach, tol);
+    if (tol !== null && !stroke.seen) stroke.seen = new Uint8Array(w() * h());
+    const before = doc.selCount;
+    const rect = discsAlong(stroke, points, (x, y) => {
+      if (stroke.seen) {
+        stroke.stamp = (stroke.stamp || 0) + 1;
+        if (stroke.stamp > 255) {
+          stroke.seen.fill(0);
+          stroke.stamp = 1;
+        }
+      }
+      doc.selCount += smartSelect(doc.rgba, w(), h(), doc.mask, doc.sel, x, y, reach, tol, stroke.seen, stroke.stamp);
     }, reach);
+    return doc.selCount > before ? rect : null;
   };
   const applyPaintStroke = (stroke, points) => {
     const [cr, cg, cb] = stroke.colour;
     const rgba = doc.rgba;
     const W = w();
-    return discsAlong(stroke, points, (cx, cy) => {
+    const before = stroke.saved.n;
+    const rect = discsAlong(stroke, points, (cx, cy) => {
       const r = stroke.radius;
       const x0 = Math.max(0, Math.floor(cx - r));
       const x1 = Math.min(W - 1, Math.ceil(cx + r));
@@ -186,12 +210,11 @@ export function createDocument() {
         for (let x = x0; x <= x1; x++) {
           if ((x - cx) * (x - cx) + (y - cy) * (y - cy) > r * r) continue;
           const p = y * W + x;
-          if (doc.mask[p] <= 127) continue;
+          /* a stroke paints each pixel once, so a pass back over it does not deepen the dye */
+          if (doc.mask[p] <= 127 || stroke.touched[p]) continue;
           const i = p * 4;
-          if (!stroke.touched[p]) {
-            stroke.touched[p] = 1;
-            stroke.saved.push(p, rgba[i], rgba[i + 1], rgba[i + 2]);
-          }
+          stroke.touched[p] = 1;
+          savePixel(stroke.saved, p, rgba[i], rgba[i + 1], rgba[i + 2]);
           if (stroke.mode === 'dye') {
             const lum = 0.299 * rgba[i] + 0.587 * rgba[i + 1] + 0.114 * rgba[i + 2];
             const f = Math.min(1.6, lum / DYE_REFERENCE);
@@ -206,12 +229,30 @@ export function createDocument() {
         }
       }
     });
+    return stroke.saved.n > before ? rect : null;
+  };
+  /* a paint stroke's record: pixel indexes and their previous colours in typed arrays that grow */
+  const newSaved = () => ({ idx: new Uint32Array(4096), col: new Uint8Array(4096 * 3), n: 0 });
+  const savePixel = (sv, p, r, g, b) => {
+    if (sv.n === sv.idx.length) {
+      const idx = new Uint32Array(sv.idx.length * 2);
+      idx.set(sv.idx);
+      sv.idx = idx;
+      const col = new Uint8Array(sv.col.length * 2);
+      col.set(sv.col);
+      sv.col = col;
+    }
+    sv.idx[sv.n] = p;
+    sv.col[sv.n * 3] = r;
+    sv.col[sv.n * 3 + 1] = g;
+    sv.col[sv.n * 3 + 2] = b;
+    sv.n++;
   };
   const startStroke = (params) => {
     const mode = params.mode;
     const isPaint = mode === 'dye' || mode === 'solid';
     const isSelect = mode === 'select';
-    const stroke = { id: nextStroke++, mode, radius: Math.max(0.5, Number(params.radius) || 10), snap: !!params.snap, tolerance: params.tolerance === undefined ? 30 : params.tolerance, colour: params.colour || [0, 0, 0], last: null, touched: isPaint ? new Uint8Array(w() * h()) : null, saved: isPaint ? [] : null };
+    const stroke = { id: nextStroke++, mode, radius: Math.max(0.5, Number(params.radius) || 10), snap: !!params.snap, tolerance: params.tolerance === undefined ? 30 : params.tolerance, colour: params.colour || [0, 0, 0], last: null, touched: isPaint ? new Uint8Array(w() * h()) : null, saved: isPaint ? newSaved() : null, applied: false, inside: false };
     let cmd;
     if (isPaint) {
       cmd = {
@@ -221,31 +262,33 @@ export function createDocument() {
         run() {},
         extend() {},
         undo() {
-          const s = stroke.saved;
-          const after = new Uint8ClampedArray((s.length / 4) * 3);
-          for (let k = 0, j = 0; k < s.length; k += 4, j += 3) {
-            const i = s[k] * 4;
-            after[j] = doc.rgba[i];
-            after[j + 1] = doc.rgba[i + 1];
-            after[j + 2] = doc.rgba[i + 2];
-            doc.rgba[i] = s[k + 1];
-            doc.rgba[i + 1] = s[k + 2];
-            doc.rgba[i + 2] = s[k + 3];
+          const sv = stroke.saved;
+          if (!cmd.after) {
+            cmd.after = new Uint8ClampedArray(sv.n * 3);
+            cmd.bytes = sv.n * 7 + cmd.after.byteLength;
           }
-          cmd.after = after;
+          for (let k = 0; k < sv.n; k++) {
+            const i = sv.idx[k] * 4;
+            cmd.after[k * 3] = doc.rgba[i];
+            cmd.after[k * 3 + 1] = doc.rgba[i + 1];
+            cmd.after[k * 3 + 2] = doc.rgba[i + 2];
+            doc.rgba[i] = sv.col[k * 3];
+            doc.rgba[i + 1] = sv.col[k * 3 + 1];
+            doc.rgba[i + 2] = sv.col[k * 3 + 2];
+          }
         },
         redo() {
-          const s = stroke.saved;
+          const sv = stroke.saved;
           const a = cmd.after;
-          for (let k = 0, j = 0; k < s.length; k += 4, j += 3) {
-            const i = s[k] * 4;
-            doc.rgba[i] = a[j];
-            doc.rgba[i + 1] = a[j + 1];
-            doc.rgba[i + 2] = a[j + 2];
+          for (let k = 0; k < sv.n; k++) {
+            const i = sv.idx[k] * 4;
+            doc.rgba[i] = a[k * 3];
+            doc.rgba[i + 1] = a[k * 3 + 1];
+            doc.rgba[i + 2] = a[k * 3 + 2];
           }
         },
         release() {
-          stroke.saved = [];
+          stroke.saved = newSaved();
           cmd.after = null;
         },
         touches: { rgba: true }
@@ -266,10 +309,24 @@ export function createDocument() {
   const strokeReply = (stroke, rect) => {
     if (stroke.mode === 'select') return rectReply(rect, { strokeId: stroke.id, withMask: false, withSel: true });
     if (stroke.mode === 'dye' || stroke.mode === 'solid') {
-      stroke.cmd.bytes = stroke.saved.length * 1.75;
+      stroke.cmd.bytes = stroke.saved.n * 7;
       return rectReply(rect, { strokeId: stroke.id, withMask: false, withRgba: true });
     }
     return rectReply(rect, { strokeId: stroke.id });
+  };
+  const isPaintStroke = (stroke) => stroke.mode === 'dye' || stroke.mode === 'solid';
+  /* after a batch of points: the stroke joins the history the first time it touches the picture
+     (a stroke that starts in the margin stays pending until it comes in) */
+  const strokeProgress = (stroke, rect) => {
+    if (!rect) {
+      const msg = stroke.inside && isPaintStroke(stroke) && !stroke.applied ? 'Paint only colours the cut-out. Brush over the garment.' : null;
+      return { result: Object.assign({ nothing: true, strokeId: stroke.id, pending: !stroke.applied }, msg ? { message: msg } : {}, state()) };
+    }
+    if (!stroke.applied) {
+      stroke.applied = true;
+      doc.stack.apply(stroke.cmd);
+    } else doc.stack.extend(stroke.cmd, []);
+    return strokeReply(stroke, rect);
   };
 
   /* ---------- the commands that take a whole picture ---------- */
@@ -296,10 +353,12 @@ export function createDocument() {
       },
       undo() {
         pending = (async () => {
-          nextRgba = await pack(doc.rgba);
-          nextMask = maskSnapshot();
-          nextSize = { width: w(), height: h() };
-          cmd.bytes += recordBytes(nextRgba) + nextMask.byteLength;
+          if (!nextRgba) {
+            nextRgba = await pack(doc.rgba);
+            nextMask = maskSnapshot();
+            nextSize = { width: w(), height: h() };
+            cmd.bytes += recordBytes(nextRgba) + nextMask.byteLength;
+          }
           doc.width = prevSize.width;
           doc.height = prevSize.height;
           doc.rgba = await unpack(prevRgba);
@@ -351,25 +410,23 @@ export function createDocument() {
       const t = params.type;
       if (t === 'brush' || t === 'paint') {
         const stroke = startStroke(params);
-        const rect = strokeApply(stroke, params.points || []);
-        if ((stroke.mode === 'dye' || stroke.mode === 'solid') && !stroke.saved.length) {
-          strokes.delete(stroke.id);
-          return nothing('Paint only colours the cut-out. Brush over the garment.');
-        }
-        doc.stack.apply(stroke.cmd);
-        return strokeReply(stroke, rect);
+        return strokeProgress(stroke, strokeApply(stroke, params.points || []));
       }
       if (t === 'brushMore') {
         const stroke = strokes.get(params.strokeId);
-        if (!stroke) throw new Error('That stroke has already ended.');
-        const rect = strokeApply(stroke, params.points || []);
-        doc.stack.extend(stroke.cmd, params.points || []);
-        return strokeReply(stroke, rect);
+        if (!stroke) return nothing('That stroke has already ended.');
+        /* an undo, a tap or a button in the middle of a stroke ended it: nothing more is applied */
+        if (stroke.applied && doc.stack.latest !== stroke.cmd) {
+          strokes.delete(stroke.id);
+          return { result: Object.assign({ nothing: true, strokeId: stroke.id, ended: true }, state()) };
+        }
+        return strokeProgress(stroke, strokeApply(stroke, params.points || []));
       }
       if (t === 'brushEnd') {
         const stroke = strokes.get(params.strokeId);
         if (stroke) {
           stroke.touched = null;
+          stroke.seen = null;
           strokes.delete(stroke.id);
         }
         return { result: state() };
@@ -413,17 +470,17 @@ export function createDocument() {
       }
       if (t === 'skin') {
         const snap = maskSnapshot();
+        const keptBefore = Math.round(coverage(doc.mask) * w() * h());
         const removed = removeSkin(doc.rgba, w(), h(), doc.mask);
         if (!removed) return nothing('No skin found in the cut-out.');
         doc.stack.apply(maskCommandFrom(snap, 'remove skin'));
-        return fullReply({}, { removed });
+        return fullReply({}, { removed, removedShare: keptBefore ? removed / keptBefore : 0 });
       }
       if (t === 'strength' || t === 'cutAgain') {
         const strength = t === 'strength' ? Math.max(0, Math.min(100, Math.round(Number(params.strength) || 0))) : doc.strength;
         const r = autoCutout(new ImageData(doc.rgba, w(), h()), { strength, keepWhole: false });
         const snap = maskSnapshot();
-        const prevStrength = doc.strength;
-        const cmd = maskCommandFrom(snap, t === 'strength' ? 'strength' : 'cut out again', prevStrength);
+        const cmd = maskCommandFrom(snap, t === 'strength' ? 'strength' : 'cut out again');
         doc.mask = r.mask;
         doc.strength = strength;
         doc.extreme = r.extreme || null;
@@ -487,24 +544,26 @@ export function createDocument() {
   };
 
   /* a mask command whose change has already been made: the record is the snapshot from before */
-  function maskCommandFrom(before, label, strengthBefore) {
-    const prevStrength = strengthBefore === undefined ? doc.strength : strengthBefore;
+  function maskCommandFrom(before, label) {
+    const flagsBefore = flags();
     const cmd = {
       label,
       bytes: before.byteLength,
       after: null,
-      strengthAfter: null,
+      flagsAfter: null,
       run() {},
       undo() {
-        cmd.after = maskSnapshot();
-        cmd.strengthAfter = doc.strength;
-        cmd.bytes += cmd.after.byteLength;
+        if (!cmd.after) {
+          cmd.after = maskSnapshot();
+          cmd.flagsAfter = flags();
+          cmd.bytes += cmd.after.byteLength;
+        }
         restoreMask(before);
-        doc.strength = prevStrength;
+        setFlags(flagsBefore);
       },
       redo() {
         restoreMask(cmd.after);
-        doc.strength = cmd.strengthAfter;
+        setFlags(cmd.flagsAfter);
       },
       touches: { mask: true }
     };

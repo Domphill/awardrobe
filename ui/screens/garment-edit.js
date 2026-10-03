@@ -110,7 +110,7 @@ function createLive({ app, router, shell }, key, existing) {
   };
 
   /* ---------- the photo ---------- */
-  const busyNow = () => session.state.status === 'opening' || session.state.status === 'cutting' || saving;
+  const busyNow = () => session.state.status === 'opening' || session.state.status === 'cutting' || !!session.state.busy || saving;
   const open = async (file) => {
     if (!file || busyNow()) return;
     stage.setStatic(null);
@@ -193,6 +193,15 @@ function createLive({ app, router, shell }, key, existing) {
   };
   const run = async (action, arg) => {
     if (!session.state.work) return null;
+    try {
+      return await perform(action, arg);
+    } catch (e) {
+      toast((e && e.message) || 'That did not work.');
+      update();
+      return null;
+    }
+  };
+  const perform = async (action, arg) => {
     let r = null;
     if (action === 'undo') r = await session.undo();
     else if (action === 'redo') r = await session.redo();
@@ -207,8 +216,9 @@ function createLive({ app, router, shell }, key, existing) {
     } else if (action === 'selectApply') r = say(await session.selectApply(arg));
     else if (action === 'skin') {
       r = say(await session.skin());
-      if (r && !r.nothing) toast('Removed the skin from the cut-out.');
+      if (r && !r.nothing) toast('Removed skin from about ' + Math.max(1, Math.round((r.removedShare || 0) * 100)) + '% of the cut-out.');
     } else if (action === 'cutAgain') r = say(await session.cutAgain());
+    else if (action === 'wandTap') r = say(await session.wand(arg.x, arg.y));
     if (r && !r.nothing) edited();
     else update();
     return r;
@@ -218,44 +228,52 @@ function createLive({ app, router, shell }, key, existing) {
       const tool = session.state.tool;
       const mode = tool === 'paint' ? session.state.options.paintMode : STROKE_MODES[tool];
       if (!mode) return null;
-      return session.beginStroke(mode, points, radius).then((r) => {
-        if (r && r.nothing && r.message) toast(r.message);
-        return r;
-      });
+      return session.beginStroke(mode, points, radius).then(
+        (r) => {
+          if (r && r.nothing && r.message) toast(r.message);
+          return r;
+        },
+        (e) => toast((e && e.message) || 'That stroke did not work.')
+      );
     },
-    strokeMove: (points) => session.strokeMore(points),
+    strokeMove: (points) => session.strokeMore(points).catch((e) => toast((e && e.message) || 'That stroke did not work.')),
     strokeEnd: () =>
-      session.endStroke().then((r) => {
-        edited();
-        return r;
-      }),
-    async tap(p) {
-      const tool = session.state.tool;
-      if (tool === 'wand') {
-        const r = say(await session.wand(p.x, p.y));
-        if (r && !r.nothing) edited();
-        return r;
-      }
-      if (tool === 'dropper') {
-        const rgb = session.colourAt(p.x, p.y);
-        if (!rgb) return null;
-        const hex = rgbToHex(rgb);
-        if (session.state.options.dropperTarget === 'paint') {
-          session.setPaintColour(hex);
-          tools.refresh();
-          toast('Paint colour set to ' + nameColour(rgb).toLowerCase() + '.');
-        } else {
-          if (form.colours.length >= MAX_COLOURS) form.colours.pop();
-          form.colours.push({ name: nameColour(rgb), hex });
-          chosen.colours = true;
-          suggest();
+      session.endStroke().then(
+        (r) => {
           edited();
-          toast('Added ' + nameColour(rgb) + ' to the colours.');
+          return r;
+        },
+        (e) => {
+          toast((e && e.message) || 'That stroke did not work.');
+          update();
         }
-        return hex;
-      }
+      ),
+    async tap(p) {
+      const st = session.state;
+      if (!st.work || p.x < 0 || p.y < 0 || p.x >= st.width || p.y >= st.height) return null;
+      if (st.tool === 'wand') return busyNow() ? null : run('wandTap', p);
+      if (st.tool === 'dropper') return dropper(p);
       return null;
     }
+  };
+  /* the Dropper (FR-42): a colour from the photo for the garment's colours or the paint brush */
+  const dropper = (p) => {
+    const rgb = session.colourAt(p.x, p.y);
+    if (!rgb) return null;
+    const hex = rgbToHex(rgb);
+    if (session.state.options.dropperTarget === 'paint') {
+      session.setPaintColour(hex);
+      tools.refresh();
+      toast('Paint colour set to ' + nameColour(rgb).toLowerCase() + '.');
+    } else {
+      if (form.colours.length >= MAX_COLOURS) form.colours.pop();
+      form.colours.push({ name: nameColour(rgb), hex });
+      chosen.colours = true;
+      suggest();
+      edited();
+      toast('Added ' + nameColour(rgb) + ' to the colours.');
+    }
+    return hex;
   };
 
   /* ---------- saving and leaving ---------- */
@@ -272,7 +290,7 @@ function createLive({ app, router, shell }, key, existing) {
     setBusy('Saving…');
     let saved = null;
     try {
-      if (session.state.tool === 'rotate') tools.setTool('move');
+      if (session.state.tool === 'rotate') await tools.setTool('move');
       const result = session.state.work ? await session.finalize() : null;
       saved = await app.garments.save({ existing, form, result });
     } catch (e) {
@@ -311,15 +329,18 @@ function createLive({ app, router, shell }, key, existing) {
     drop();
   };
   const detach = () => {
-    app.drafts.flush(dkey).catch(() => {});
-    drop();
+    /* the draft is built from the session, so the session is closed only once it is written */
+    const flushing = app.drafts.flush(dkey).catch(() => {});
+    drop({ keepSession: true });
+    flushing.then(() => session.close());
   };
   const onKey = (e) => {
     if (document.querySelector('.sheet-wrap')) return;
     if (tools && tools.key(e)) e.preventDefault();
   };
-  const drop = () => {
+  const drop = (opts) => {
     if (live === api) live = null;
+    app.drafts.onError = null;
     if (shell.pickPhoto === pickPhoto) shell.pickPhoto = null;
     if (shell.editor === editorHandle) shell.editor = null;
     if (shell.onLeave === detach) shell.onLeave = null;
@@ -329,7 +350,7 @@ function createLive({ app, router, shell }, key, existing) {
       keyHooked = false;
     }
     if (stage) stage.destroy();
-    session.close();
+    if (!(opts && opts.keepSession)) session.close();
   };
   const pickPhoto = (file) => open(file);
   const editorHandle = {
@@ -346,6 +367,7 @@ function createLive({ app, router, shell }, key, existing) {
     cropBox: (box) => (box ? stage.setCropBox(box) : stage.getCropBox()),
     pressOriginal: (on) => stage.showOriginal(on),
     openFromOriginal: redoFromOriginal,
+    crashTools: () => session.crashTools(),
     setStrength: async (v) => {
       say(await session.setStrength(v));
       edited();
@@ -363,6 +385,7 @@ function createLive({ app, router, shell }, key, existing) {
     shell.editor = editorHandle;
     shell.onLeave = detach;
     shell.onHide = () => app.drafts.flush(dkey).catch(() => {});
+    app.drafts.onError = () => toast("Your draft couldn't be kept. Save soon, or free some space on the phone.");
     if (!keyHooked) {
       document.addEventListener('keydown', onKey);
       keyHooked = true;

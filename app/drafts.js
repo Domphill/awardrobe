@@ -12,7 +12,10 @@ export const draftKey = (garmentId) => (garmentId ? 'editor:' + garmentId : 'edi
 export function createDrafts(records) {
   const pending = new Map();
   let writing = Promise.resolve();
+  let failed = null;
   const api = {
+    /* the screen sets this to tell the user when a draft could not be kept (NFR-28) */
+    onError: null,
     get: async (key) => (await records.db.get('drafts', key || 'editor')) || null,
     /* `build()` runs when the write happens, so the latest state is what gets kept */
     schedule(build, key) {
@@ -46,11 +49,19 @@ export function createDrafts(records) {
             if (!fields) return;
             await records.db.put('drafts', Object.assign({ key: k, at: new Date().toISOString() }, fields));
           })
-          .catch(() => {
-            /* a draft that cannot be written is not something the user can act on */
+          .catch((e) => {
+            failed = e;
+            console.error('draft:', e);
+            if (api.onError) api.onError(e);
           });
       }
-      return writing;
+      return writing.then(() => {
+        if (failed) {
+          const e = failed;
+          failed = null;
+          throw e;
+        }
+      });
     },
     async clear(key) {
       key = key || 'editor';

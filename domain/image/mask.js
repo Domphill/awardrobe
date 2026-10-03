@@ -8,8 +8,9 @@ export const colourDistance = (d, i, r, g, b) => {
   const db = d[i + 2] - b;
   return Math.sqrt(2 * dr * dr + 4 * dg * dg + 3 * db * db);
 };
-/* tolerance 0..100 becomes a colour distance: 0 is the exact colour only */
-export const toleranceThreshold = (t) => 6 + 3.6 * Math.min(100, Math.max(0, t));
+/* tolerance 0..100 becomes a colour distance: 0 is the exact colour only. The middle of the
+   slider, 30, reaches about 20 levels a channel: a shade step, not a grey tee against a sheet. */
+export const toleranceThreshold = (t) => 4 + 2 * Math.min(100, Math.max(0, t));
 
 /* Paints a round spot of `value` into the mask. Returns how many pixels changed. */
 export function paintDisc(mask, w, h, cx, cy, r, value) {
@@ -224,8 +225,9 @@ export function rleDecode(runs, length) {
 
 /* The Select brush. With a tolerance, the selection grows from the point over kept pixels within
    `reach` that are similar in colour to the pixel under the point, so it snaps to the garment's
-   edge; with tolerance null it is a plain disc over kept pixels. Returns how many were added. */
-export function smartSelect(rgba, w, h, kept, sel, cx, cy, reach, tolerance) {
+   edge; with tolerance null it is a plain disc over kept pixels. Returns how many were added.
+   `seen` and `stamp` let a stroke reuse one visited-marker array for all its discs. */
+export function smartSelect(rgba, w, h, kept, sel, cx, cy, reach, tolerance, seen, stamp) {
   const x = Math.round(cx);
   const y = Math.round(cy);
   if (x < 0 || y < 0 || x >= w || y >= h) return 0;
@@ -254,13 +256,16 @@ export function smartSelect(rgba, w, h, kept, sel, cx, cy, reach, tolerance) {
   const b = rgba[i0 + 2];
   const th = toleranceThreshold(tolerance);
   const r2 = reach * reach;
-  const seen = new Uint8Array(w * h);
+  if (!seen) {
+    seen = new Uint8Array(w * h);
+    stamp = 1;
+  }
   const stack = [start];
-  seen[start] = 1;
+  seen[start] = stamp;
   let n = 0;
   const visit = (q) => {
-    if (seen[q] || kept[q] <= 127) return;
-    seen[q] = 1;
+    if (seen[q] === stamp || kept[q] <= 127) return;
+    seen[q] = stamp;
     const qx = q % w;
     const qy = (q - qx) / w;
     if ((qx - cx) * (qx - cx) + (qy - cy) * (qy - cy) > r2) return;

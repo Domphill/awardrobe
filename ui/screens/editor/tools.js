@@ -4,8 +4,9 @@
    worker directly. */
 import { h, btn, iconBtn, segmented, sheet, toast } from '../../components.js';
 import { icon } from '../../icons.js';
-import { SWATCHES } from '../../../domain/colour/naming.js';
+import { SWATCHES, nameColour } from '../../../domain/colour/naming.js';
 import { BRUSH_SIZES } from '../../../domain/image/geometry.js';
+import { hexToRgb } from '../../../app/editor-session.js';
 
 export const TOOLS = [
   ['move', 'Move', 'm'],
@@ -52,7 +53,7 @@ export function createTools({ session, stage, run }) {
     return h('div.slider-row', h('span.muted', label + ' '), value, input);
   };
   const paintSwatch = () => {
-    const sw = h('button#paint-colour', { type: 'button', 'aria-label': 'Paint colour ' + st().paintColour, onclick: () => pickPalette((hex) => session.setPaintColour(hex)) }, h('span.swatch-dot', { style: { background: st().paintColour } }), h('span', 'Colour'));
+    const sw = h('button#paint-colour', { type: 'button', 'aria-label': 'Paint colour: ' + nameColour(hexToRgb(st().paintColour)), onclick: () => pickPalette((hex) => session.setPaintColour(hex)) }, h('span.swatch-dot', { style: { background: st().paintColour } }), h('span', 'Colour'));
     return sw;
   };
   const pickPalette = (onPick) => {
@@ -119,16 +120,18 @@ export function createTools({ session, stage, run }) {
     },
     setTool(tool) {
       const was = st().tool;
+      let applied = Promise.resolve(null);
       if (was === 'rotate' && tool !== 'rotate' && st().options.angle) {
         const deg = st().options.angle;
         session.setOption('angle', 0);
         stage.rotatePreview(0);
-        run('rotate', deg);
+        applied = run('rotate', deg);
       }
       session.setTool(tool);
       stage.setTool(tool);
       build();
       if (buttons[tool]) buttons[tool].focus({ preventScroll: true });
+      return applied;
     },
     setOption(key, value) {
       if (key === 'colour') {
@@ -165,7 +168,5 @@ export function createTools({ session, stage, run }) {
     pickPalette
   };
   build();
-  void iconBtn;
-  void toast;
   return api;
 }
