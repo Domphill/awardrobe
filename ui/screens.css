@@ -174,8 +174,28 @@
   z-index: 1;
 }
 .stage-empty.over {
-  align-self: end;
-  padding-bottom: 14px;
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 36px 20px 14px;
+  gap: 8px;
+  background: linear-gradient(to bottom, transparent, var(--fog) 40%);
+}
+.stage-empty.over .icon {
+  display: none;
+}
+.stage-empty.over p {
+  font-size: 13.5px;
+}
+/* a phone on its side: the stage leaves room for the tape and the tools */
+@media (orientation: landscape) and (max-height: 520px) {
+  .stage {
+    aspect-ratio: auto;
+    height: 48vh;
+    min-height: 180px;
+    max-height: none;
+  }
 }
 .stage-empty p {
   color: var(--graphite);
@@ -260,12 +280,12 @@ input[type='range'].tape::-moz-range-thumb {
 input[type='range'].tape:disabled {
   opacity: 0.45;
 }
+/* every tool stays in view: the bar wraps into rows of equal cells on a narrow screen */
 .tools {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
   gap: 6px;
-  overflow-x: auto;
   padding-bottom: 4px;
-  scrollbar-width: none;
 }
 .tools::-webkit-scrollbar {
   display: none;
@@ -346,4 +366,128 @@ input[type='range'].tape:disabled {
   padding: 0 4px;
   white-space: normal;
   min-width: 200px;
+}
+
+/* ---------- the editor stage and tools ---------- */
+.stage {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.stage.bg-light,
+.stage.bg-dark {
+  background-image: none;
+}
+.stage.bg-light {
+  background-color: #f4f4f1;
+}
+.stage.bg-dark {
+  background-color: #1b2235;
+}
+#stage-overlay {
+  pointer-events: none;
+}
+#brush-ring {
+  position: absolute;
+  pointer-events: none;
+  border: 2px solid var(--tape);
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(0, 0, 0, 0.35);
+  transform: translate(-50%, -50%);
+  z-index: 3;
+}
+#zoom-level {
+  position: absolute;
+  left: 10px;
+  top: 10px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--raise);
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 13px;
+  box-shadow: 0 4px 12px var(--shadow);
+  z-index: 3;
+}
+.tool-options {
+  display: grid;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--raise);
+  border: 1px solid var(--rule);
+}
+.tool-options:empty {
+  display: none;
+}
+.brush-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.brush-size button {
+  width: var(--tap);
+  height: var(--tap);
+  border-radius: 50%;
+  border: 2px solid var(--rule);
+  background: var(--raise);
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+.brush-size button[aria-pressed='true'] {
+  border-color: var(--tape);
+  box-shadow: 0 0 0 2px var(--tape);
+}
+.brush-size .dot {
+  border-radius: 50%;
+  background: var(--ink);
+}
+.dot-small {
+  width: 8px;
+  height: 8px;
+}
+.dot-medium {
+  width: 16px;
+  height: 16px;
+}
+.dot-large {
+  width: 26px;
+  height: 26px;
+}
+.slider-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.slider-row .slider {
+  flex: 1;
+  min-width: 120px;
+  accent-color: var(--tape);
+  height: var(--tap);
+}
+.slider-row .input {
+  width: 84px;
+}
+#paint-colour {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: var(--tap);
+  padding: 4px 12px 4px 6px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--rule);
+  background: var(--raise);
+  color: var(--ink);
+  font-weight: 600;
+}
+.edit-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+#show-original {
+  touch-action: none;
 }

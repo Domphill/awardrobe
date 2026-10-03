@@ -1,41 +1,50 @@
-/* aWardrobe app: the editor draft (FR-49). Written at most once every two seconds while editing
-   and whenever the screen is left or the app goes to the background; offered when the add screen
-   opens again; removed on save or discard. The photo goes in as JPEG and the mask as PNG, so a
-   draft stays small. */
+/* aWardrobe app: the editor drafts (FR-49), one per thing being edited: 'editor' for a new
+   garment, 'editor:<id>' for a saved one, so an edit can never overwrite an add in progress.
+   A draft is written at most once every two seconds while editing, when the screen is left,
+   when the app goes to the background and when a save fails; it is offered when the same screen
+   opens again and removed on save or discard. The photo goes in as JPEG and the mask as PNG. */
 import { toJpeg } from '../infra/image-pipeline.js';
 import { encodeGrayPng } from '../domain/image/png.js';
 
 export const DRAFT_DELAY = 2000;
+export const draftKey = (garmentId) => (garmentId ? 'editor:' + garmentId : 'editor');
 
 export function createDrafts(records) {
-  let timer = null;
-  let make = null;
+  const pending = new Map();
   let writing = Promise.resolve();
   const api = {
-    get: async () => (await records.db.get('drafts', 'editor')) || null,
+    get: async (key) => (await records.db.get('drafts', key || 'editor')) || null,
     /* `build()` runs when the write happens, so the latest state is what gets kept */
-    schedule(build) {
-      make = build;
-      if (timer) return;
-      timer = setTimeout(() => {
-        timer = null;
-        api.flush().catch(() => {});
+    schedule(build, key) {
+      key = key || 'editor';
+      const p = pending.get(key) || { timer: null, build: null };
+      p.build = build;
+      pending.set(key, p);
+      if (p.timer) return;
+      p.timer = setTimeout(() => {
+        p.timer = null;
+        api.flush(key).catch(() => {});
       }, DRAFT_DELAY);
     },
-    /* writes what is pending now; resolves when the draft is on disk */
-    flush() {
-      if (timer) {
-        clearTimeout(timer);
-        timer = null;
-      }
-      const build = make;
-      make = null;
-      if (build) {
+    /* writes what is pending now (one key, or all of them); resolves when it is on disk */
+    flush(key) {
+      const keys = key ? [key] : [...pending.keys()];
+      for (const k of keys) {
+        const p = pending.get(k);
+        if (!p) continue;
+        if (p.timer) {
+          clearTimeout(p.timer);
+          p.timer = null;
+        }
+        const build = p.build;
+        p.build = null;
+        pending.delete(k);
+        if (!build) continue;
         writing = writing
           .then(async () => {
             const fields = await build();
             if (!fields) return;
-            await records.db.put('drafts', Object.assign({ key: 'editor', at: new Date().toISOString() }, fields));
+            await records.db.put('drafts', Object.assign({ key: k, at: new Date().toISOString() }, fields));
           })
           .catch(() => {
             /* a draft that cannot be written is not something the user can act on */
@@ -43,14 +52,13 @@ export function createDrafts(records) {
       }
       return writing;
     },
-    async clear() {
-      if (timer) {
-        clearTimeout(timer);
-        timer = null;
-      }
-      make = null;
+    async clear(key) {
+      key = key || 'editor';
+      const p = pending.get(key);
+      if (p && p.timer) clearTimeout(p.timer);
+      pending.delete(key);
       await writing;
-      await records.db.delete('drafts', 'editor');
+      await records.db.delete('drafts', key);
     },
     encodePhoto: (work) => toJpeg(work.data, work.width, work.height, 0.86),
     encodeMask: (mask, w, h) => encodeGrayPng(mask, w, h)

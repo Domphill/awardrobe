@@ -71,8 +71,10 @@ export function createGarments(app) {
         const orig = result.original && result.original.blob ? pictureRecord('original', { colour: result.original.blob, alpha: null, width: result.original.width, height: result.original.height, bytes: result.original.blob.size }) : null;
         pics.push(cut, th);
         if (orig) pics.push(orig);
-        if (existing && existing.pictures) for (const id of Object.values(existing.pictures)) if (id) oldIds.push(id);
-        rec.pictures = { cutout: cut.id, thumb: th.id, original: orig ? orig.id : null };
+        /* a cut-out redone from the stored original keeps that original (FR-31) */
+        const keepId = result.original && result.original.keepId ? result.original.keepId : null;
+        if (existing && existing.pictures) for (const id of Object.values(existing.pictures)) if (id && id !== keepId) oldIds.push(id);
+        rec.pictures = { cutout: cut.id, thumb: th.id, original: orig ? orig.id : keepId };
         rec.cutout = { kind: result.kind, width: result.cutout.width, height: result.cutout.height, strength: result.strength, method: result.method };
         rec.shape = result.shape || null;
       }

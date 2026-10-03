@@ -137,14 +137,16 @@ export function createDocument() {
   };
 
   /* ---------- strokes: eraser, restore, select, paint ---------- */
-  const discsAlong = (stroke, points, fn) => {
+  /* `reach` is how far a disc can touch (the Select snap reaches past the brush), for the rect */
+  const discsAlong = (stroke, points, fn, reach) => {
     let rect = null;
-    const r = stroke.radius;
+    const r = reach || stroke.radius;
+    const step = Math.max(1, stroke.radius / 2);
     for (const p of points) {
       const last = stroke.last;
       if (last) {
         const dist = Math.hypot(p.x - last.x, p.y - last.y);
-        const steps = Math.max(1, Math.ceil(dist / Math.max(1, r / 2)));
+        const steps = Math.max(1, Math.ceil(dist / step));
         for (let k = 1; k <= steps; k++) {
           const x = last.x + ((p.x - last.x) * k) / steps;
           const y = last.y + ((p.y - last.y) * k) / steps;
@@ -168,7 +170,7 @@ export function createDocument() {
     const tol = stroke.snap ? stroke.tolerance : null;
     return discsAlong(stroke, points, (x, y) => {
       doc.selCount += smartSelect(doc.rgba, w(), h(), doc.mask, doc.sel, x, y, reach, tol);
-    });
+    }, reach);
   };
   const applyPaintStroke = (stroke, points) => {
     const [cr, cg, cb] = stroke.colour;

@@ -1,17 +1,17 @@
-/* aWardrobe app: the editor's state for one photo (architecture section 6). This milestone:
-   open a photo, the automatic cut-out with the strength control, undo and redo of it, whole
-   photo, the colours and the type guess, the draft, and the final save. The worker does the
-   pixel work; the session keeps the working copy for the preview and sends copies across. */
+/* aWardrobe app: the editor's state for one photo (architecture section 6). The worker owns the
+   editing document and its undo history; this session keeps a preview copy of the pixels, the
+   mask and the selection, sends commands and applies the rectangles that come back, so the
+   screen never holds the only copy of anything. Also: open, the automatic cut-out, whole photo,
+   colours and the type guess, the draft, and the final save. */
 import { decodeOnMain } from '../infra/decode.js';
 import { HEIC_HINT } from '../infra/image-pipeline.js';
 import { decodeBlob } from './pictures.js';
 
-const HISTORY_LIMIT = 20;
-const SNAP_KEYS = ['mask', 'coverage', 'lowContrast', 'separation', 'bg', 'method', 'autoWhole', 'extreme', 'strength', 'choice', 'wholePhoto'];
-const DRAFT_KEYS = ['width', 'height', 'original', 'strength', 'choice', 'autoWhole', 'coverage', 'lowContrast', 'separation', 'bg', 'method', 'colours', 'shape', 'guess', 'opens'];
+const DRAFT_KEYS = ['width', 'height', 'original', 'strength', 'choice', 'autoWhole', 'coverage', 'lowContrast', 'separation', 'bg', 'method', 'colours', 'shape', 'guess', 'opens', 'tool', 'paintColour', 'originalId'];
 /* with no cut-out, the colours are read from the middle of the picture, where the garment is */
 const CENTRE_FROM = 0.22;
 const CENTRE_TO = 0.78;
+export const DEFAULT_OPTIONS = { size: 'medium', tolerance: 30, snap: true, wandMode: 'remove', paintMode: 'dye', dropperTarget: 'garment', angle: 0 };
 
 export function createSession(app) {
   const worker = app.images();
@@ -25,7 +25,10 @@ export function createSession(app) {
     height: 0,
     work: null,
     original: null,
+    originalId: null,
     mask: null,
+    sel: null,
+    selection: 0,
     coverage: 0,
     lowContrast: false,
     separation: null,
@@ -39,12 +42,21 @@ export function createSession(app) {
     colours: [],
     shape: null,
     guess: null,
-    history: [],
-    future: [],
-    dirty: false
+    labels: { undo: null, redo: null },
+    steps: 0,
+    dirty: false,
+    tool: 'move',
+    paintColour: '#c8302c',
+    options: Object.assign({}, DEFAULT_OPTIONS)
   };
   let preview = null;
-  const draftCache = { opens: -1, photo: null, mask: null, maskBlob: null };
+  let previewDirty = 'all';
+  let originalCanvas = null;
+  let selCanvas = null;
+  let selDirty = 'all';
+  let docOpen = false;
+  let stroke = null;
+  const draftCache = { opens: -1, photo: null, mask: null, maskBlob: null, width: 0, height: 0, steps: -1 };
   const emit = () => {
     for (const fn of listeners) {
       try {
@@ -65,16 +77,34 @@ export function createSession(app) {
     return m;
   };
   const effectiveWhole = () => (s.choice === null ? s.autoWhole : s.choice);
-  /* a canvas gives its memory back at once when its size is zeroed; Safari is slow to collect otherwise */
-  const dropPreview = () => {
-    if (preview) {
-      preview.width = 0;
-      preview.height = 0;
+  const freeCanvas = (c) => {
+    if (c) {
+      c.width = 0;
+      c.height = 0;
     }
+  };
+  const dropPreview = () => {
+    freeCanvas(preview);
     preview = null;
+    previewDirty = 'all';
+    freeCanvas(originalCanvas);
+    originalCanvas = null;
+    freeCanvas(selCanvas);
+    selCanvas = null;
+    selDirty = 'all';
+  };
+  const unionRect = (a, b) => {
+    if (a === 'all' || b === 'all') return 'all';
+    if (!a) return b;
+    return { x0: Math.min(a.x0, b.x0), y0: Math.min(a.y0, b.y0), x1: Math.max(a.x1, b.x1), y1: Math.max(a.y1, b.y1) };
+  };
+  const countSel = () => {
+    let n = 0;
+    for (let i = 0; i < s.sel.length; i++) if (s.sel[i]) n++;
+    return n;
   };
 
-  /* the worker decodes; a worker that cannot (or died) hands over to the main thread */
+  /* ---------- the worker ---------- */
   async function decode(file) {
     try {
       return await worker.call('open', { file });
@@ -86,10 +116,10 @@ export function createSession(app) {
       }
     }
   }
-  /* the first pass may keep the whole photo (FR-27); a strength the user chose shows its result */
-  async function segmentNow(strength, first) {
+  /* the first automatic pass, which may keep the whole photo (FR-27) */
+  async function firstCut() {
     const rgba = rgbaCopy();
-    const r = await worker.call('segment', { rgba, width: s.width, height: s.height, strength, keepWhole: !!first }, [rgba.buffer]);
+    const r = await worker.call('segment', { rgba, width: s.width, height: s.height, strength: 50, keepWhole: true }, [rgba.buffer]);
     s.mask = r.mask || null;
     s.coverage = r.coverage || 0;
     s.lowContrast = !!r.lowContrast;
@@ -97,10 +127,19 @@ export function createSession(app) {
     s.bg = r.bg || null;
     s.method = r.method || null;
     s.autoWhole = !!r.wholePhoto;
-    s.extreme = r.extreme || null;
-    s.strength = strength;
+    s.extreme = null;
+    s.strength = 50;
     s.wholePhoto = effectiveWhole();
-    dropPreview();
+  }
+  async function openDocument() {
+    const rgba = rgbaCopy();
+    const mask = s.mask ? maskCopy() : fullMask();
+    const r = await worker.call('docOpen', { rgba, width: s.width, height: s.height, mask, strength: s.strength, lowContrast: s.lowContrast }, [rgba.buffer, mask.buffer]);
+    docOpen = true;
+    s.sel = new Uint8Array(s.width * s.height);
+    s.selection = 0;
+    s.labels = r.labels;
+    s.steps = r.length || 0;
   }
   async function detect() {
     const rgba = rgbaCopy();
@@ -116,23 +155,82 @@ export function createSession(app) {
     s.shape = shape && shape.length === 12 ? Array.from(shape) : null;
     s.guess = app.garments.guess(s.shape, s.colours);
   }
-  const snapshot = () => {
-    const snap = {};
-    for (const k of SNAP_KEYS) snap[k] = s[k];
-    return snap;
-  };
-  const restore = (snap) => {
-    Object.assign(s, snap);
-    dropPreview();
+  /* a reply from the document, applied to the preview copies */
+  function sync(r) {
+    if (!r || r.nothing) return;
+    const resized = r.size && (r.size.width !== s.width || r.size.height !== s.height);
+    if (r.full) {
+      if (resized) {
+        s.width = r.size.width;
+        s.height = r.size.height;
+      }
+      if (r.rgba) s.work = new ImageData(r.rgba, s.width, s.height);
+      if (r.mask) s.mask = r.mask;
+      if (r.sel) s.sel = r.sel;
+      else if (resized || !s.sel || s.sel.length !== s.width * s.height) s.sel = new Uint8Array(s.width * s.height);
+      s.selection = countSel();
+      dropPreview();
+    } else if (r.rect) {
+      const { x0, y0, x1, y1 } = r.rect;
+      const rw = x1 - x0;
+      for (let y = y0; y < y1; y++) {
+        const dst = y * s.width + x0;
+        const src = (y - y0) * rw;
+        if (r.mask) s.mask.set(r.mask.subarray(src, src + rw), dst);
+        if (r.rgba) s.work.data.set(r.rgba.subarray(src * 4, (src + rw) * 4), dst * 4);
+        if (r.sel) {
+          for (let x = 0; x < rw; x++) s.selection += (r.sel[src + x] ? 1 : 0) - (s.sel[dst + x] ? 1 : 0);
+          s.sel.set(r.sel.subarray(src, src + rw), dst);
+        }
+      }
+      if (r.mask || r.rgba) previewDirty = unionRect(previewDirty, r.rect);
+      if (r.rgba) {
+        freeCanvas(originalCanvas);
+        originalCanvas = null;
+      }
+      if (r.sel) selDirty = unionRect(selDirty, r.rect);
+    }
+    if (r.labels) s.labels = r.labels;
+    if (typeof r.length === 'number') s.steps = r.length;
+    if (typeof r.coverage === 'number') s.coverage = r.coverage;
+    if (typeof r.strength === 'number') s.strength = r.strength;
+    if (r.extreme !== undefined) s.extreme = r.extreme;
+    if (typeof r.lowContrast === 'boolean') s.lowContrast = r.lowContrast;
+    if (r.separation !== undefined) s.separation = r.separation;
+    if (typeof r.hasSelection === 'boolean' && !r.hasSelection) s.selection = 0;
+    s.dirty = true;
+  }
+  const command = async (params) => {
+    if (!docOpen || s.status !== 'ready') return { nothing: true, message: 'The photo is still being prepared.' };
+    const r = await worker.call('docCommand', params);
+    sync(r);
+    emit();
+    return r;
   };
   const working = async (label, fn) => {
+    const was = s.status;
     s.status = 'cutting';
     s.busy = label;
     emit();
     try {
-      await fn();
+      return await fn();
     } finally {
-      s.status = s.work ? 'ready' : 'empty';
+      s.status = s.work ? 'ready' : was === 'cutting' ? 'empty' : was;
+      s.busy = null;
+      emit();
+    }
+  };
+  /* the commands that take a whole picture run with the busy sign but with the status kept
+     ready, because the document itself is the one place the work happens */
+  const heavy = async (label, params) => {
+    if (!docOpen || s.status !== 'ready') return { nothing: true, message: 'The photo is still being prepared.' };
+    s.busy = label;
+    emit();
+    try {
+      const r = await worker.call('docCommand', params);
+      sync(r);
+      return r;
+    } finally {
       s.busy = null;
       emit();
     }
@@ -147,7 +245,8 @@ export function createSession(app) {
       return () => listeners.delete(fn);
     },
     /* a photo file in: decode and orient, cut out at the middle strength, read colours and type */
-    async open(file) {
+    async open(file, opts) {
+      opts = opts || {};
       if (s.status === 'opening' || s.status === 'cutting') return;
       s.status = 'opening';
       s.busy = 'Opening the photo…';
@@ -155,20 +254,26 @@ export function createSession(app) {
       emit();
       try {
         const d = await decode(file);
+        if (docOpen) worker.call('docClose', {}).catch(() => {});
+        docOpen = false;
+        stroke = null;
         s.work = d.work;
         s.width = d.width;
         s.height = d.height;
-        s.original = { blob: d.original, width: d.originalWidth, height: d.originalHeight };
+        s.original = opts.keepOriginalId ? null : { blob: d.original, width: d.originalWidth, height: d.originalHeight };
+        s.originalId = opts.keepOriginalId || null;
         s.opens++;
-        s.history = [];
-        s.future = [];
         s.dirty = false;
         s.choice = null;
+        s.labels = { undo: null, redo: null };
+        s.steps = 0;
+        s.options.angle = 0;
         dropPreview();
         s.status = 'cutting';
         s.busy = 'Cutting it out…';
         emit();
-        await segmentNow(50, true);
+        await firstCut();
+        await openDocument();
         await detect();
         s.status = 'ready';
         s.busy = null;
@@ -181,54 +286,111 @@ export function createSession(app) {
         throw e;
       }
     },
-    /* the strength control re-runs the cut-out; the previous result can be undone (FR-25, FR-45) */
+    /* redo the cut-out of a saved garment from its reduced original (FR-31) */
+    async openFromPicture(rec) {
+      if (!rec || !rec.colour) throw new Error('This garment has no reduced original to work from.');
+      return api.open(new File([rec.colour], 'original.jpg', { type: rec.colour.type || 'image/jpeg' }), { keepOriginalId: rec.id });
+    },
+
+    /* ---------- the tools, as commands in the document ---------- */
     async setStrength(v) {
       v = Math.max(0, Math.min(100, Math.round(Number(v) || 0)));
-      if (s.status !== 'ready' || v === s.strength) return;
-      const before = snapshot();
-      s.history.push(before);
-      if (s.history.length > HISTORY_LIMIT) s.history.shift();
-      s.future = [];
+      if (s.status !== 'ready' || v === s.strength) return null;
       s.error = null;
-      try {
-        await working('Cutting it out…', async () => {
-          await segmentNow(v, false);
-          s.dirty = true;
-        });
-      } catch (e) {
-        /* nothing changed: the step is not kept, and the message says why */
-        if (s.history[s.history.length - 1] === before) s.history.pop();
-        s.error = (e && e.message) || 'The cut-out could not be redone.';
-        emit();
-        throw e;
-      }
+      return heavy('Cutting it out…', { type: 'strength', strength: v });
     },
-    undo() {
-      if (!s.history.length || s.status !== 'ready') return false;
-      s.future.push(snapshot());
-      restore(s.history.pop());
-      s.dirty = true;
-      emit();
-      return true;
+    cutAgain: () => heavy('Cutting it out…', { type: 'cutAgain' }),
+    /* a stroke: begin with the first points, add more once per frame, end when the finger
+       lifts. Points that arrive before the document has answered the start are held back. */
+    async beginStroke(mode, points, radius) {
+      if (stroke) await api.endStroke();
+      const o = s.options;
+      const params = { type: mode === 'dye' || mode === 'solid' ? 'paint' : 'brush', mode, points, radius, snap: !!o.snap, tolerance: o.tolerance, colour: hexToRgb(s.paintColour) };
+      const st = { id: null, queue: [], sending: null, start: null };
+      stroke = st;
+      st.start = command(params).then((r) => {
+        if (r && r.strokeId) st.id = r.strokeId;
+        else if (stroke === st) stroke = null;
+        return r;
+      });
+      return st.start;
     },
-    redo() {
-      if (!s.future.length || s.status !== 'ready') return false;
-      s.history.push(snapshot());
-      restore(s.future.pop());
-      s.dirty = true;
+    strokeMore(points) {
+      if (!stroke || !points.length) return Promise.resolve(null);
+      const st = stroke;
+      st.queue.push(...points);
+      if (st.sending) return st.sending;
+      st.sending = (async () => {
+        await st.start;
+        while (st.id && st.queue.length) {
+          const batch = st.queue.splice(0, st.queue.length);
+          sync(await worker.call('docCommand', { type: 'brushMore', strokeId: st.id, points: batch }));
+          emit();
+        }
+        st.sending = null;
+      })();
+      return st.sending;
+    },
+    async endStroke() {
+      const st = stroke;
+      if (!st) return null;
+      await st.start;
+      if (st.sending) await st.sending;
+      if (stroke === st) stroke = null;
+      if (!st.id) return null;
+      const r = await worker.call('docCommand', { type: 'brushEnd', strokeId: st.id });
+      sync(r);
       emit();
-      return true;
+      return r;
+    },
+    wand: (x, y) => command({ type: 'wand', x, y, tolerance: s.options.tolerance, mode: s.options.wandMode }),
+    selectApply: (action) => command({ type: 'selectApply', action }),
+    rotate: (degrees) => heavy('Turning the photo…', { type: 'rotate', degrees }),
+    mirror: () => command({ type: 'mirror' }),
+    crop: (box) => heavy('Cropping…', { type: 'crop', box }),
+    skin: () => heavy('Looking for skin…', { type: 'skin' }),
+    async undo() {
+      if (!docOpen) return null;
+      const r = await worker.call('docUndo', {});
+      sync(r);
+      emit();
+      return r;
+    },
+    async redo() {
+      if (!docOpen) return null;
+      const r = await worker.call('docRedo', {});
+      sync(r);
+      emit();
+      return r;
     },
     get undoLabel() {
-      return s.history.length ? 'Undo strength' : null;
+      return s.labels.undo;
     },
     get redoLabel() {
-      return s.future.length ? 'Redo strength' : null;
+      return s.labels.redo;
     },
-    /* keep the whole photo by choice (FR-50); unticking without a cut-out keeps everything */
+    /* the colour under a point, for the Dropper (FR-42) */
+    colourAt(x, y) {
+      if (!s.work) return null;
+      const i = (Math.round(y) * s.width + Math.round(x)) * 4;
+      const d = s.work.data;
+      return [d[i], d[i + 1], d[i + 2]];
+    },
+    setTool(name) {
+      s.tool = name;
+      emit();
+    },
+    setOption(key, value) {
+      s.options[key] = value;
+      emit();
+    },
+    setPaintColour(hex) {
+      s.paintColour = hex;
+      emit();
+    },
+    /* keep the whole photo by choice (FR-50) */
     setWholePhoto(on) {
       s.choice = !!on;
-      if (!on && !s.mask) s.mask = fullMask();
       s.wholePhoto = effectiveWhole();
       s.dirty = true;
       dropPreview();
@@ -238,47 +400,105 @@ export function createSession(app) {
       if (s.status !== 'ready') return;
       await working('Reading the colours…', detect);
     },
-    /* the preview: the working photo with the mask as its transparency, or plain for a whole photo */
+
+    /* ---------- previews for the stage ---------- */
     preview() {
       if (!s.work) return null;
-      if (preview) return preview;
-      const c = document.createElement('canvas');
-      c.width = s.width;
-      c.height = s.height;
-      const ctx = c.getContext('2d');
-      if (s.wholePhoto || !s.mask) ctx.putImageData(s.work, 0, 0);
-      else {
-        const img = new ImageData(new Uint8ClampedArray(s.work.data), s.width, s.height);
-        const d = img.data;
-        const m = s.mask;
-        for (let p = 0, i = 3; p < m.length; p++, i += 4) d[i] = m[p];
-        ctx.putImageData(img, 0, 0);
+      if (!preview || preview.width !== s.width || preview.height !== s.height) {
+        freeCanvas(preview);
+        preview = document.createElement('canvas');
+        preview.width = s.width;
+        preview.height = s.height;
+        previewDirty = 'all';
       }
-      preview = c;
-      return c;
+      if (previewDirty) {
+        const rect = previewDirty === 'all' ? { x0: 0, y0: 0, x1: s.width, y1: s.height } : previewDirty;
+        const rw = rect.x1 - rect.x0;
+        const rh = rect.y1 - rect.y0;
+        const img = new ImageData(rw, rh);
+        const d = img.data;
+        const src = s.work.data;
+        const whole = s.wholePhoto || !s.mask;
+        for (let y = 0; y < rh; y++) {
+          const row = (rect.y0 + y) * s.width + rect.x0;
+          d.set(src.subarray(row * 4, (row + rw) * 4), y * rw * 4);
+          if (!whole) for (let x = 0; x < rw; x++) d[(y * rw + x) * 4 + 3] = s.mask[row + x];
+        }
+        preview.getContext('2d').putImageData(img, rect.x0, rect.y0);
+        previewDirty = null;
+      }
+      return preview;
     },
-    /* everything the save needs, encoded in the worker (FR-29, FR-30) */
+    original() {
+      if (!s.work) return null;
+      if (!originalCanvas || originalCanvas.width !== s.width || originalCanvas.height !== s.height) {
+        freeCanvas(originalCanvas);
+        originalCanvas = document.createElement('canvas');
+        originalCanvas.width = s.width;
+        originalCanvas.height = s.height;
+        originalCanvas.getContext('2d').putImageData(s.work, 0, 0);
+      }
+      return originalCanvas;
+    },
+    /* the selection as a tape-coloured tint */
+    selectionLayer() {
+      if (!s.sel || !s.selection) return null;
+      if (!selCanvas || selCanvas.width !== s.width || selCanvas.height !== s.height) {
+        freeCanvas(selCanvas);
+        selCanvas = document.createElement('canvas');
+        selCanvas.width = s.width;
+        selCanvas.height = s.height;
+        selDirty = 'all';
+      }
+      if (selDirty) {
+        const rect = selDirty === 'all' ? { x0: 0, y0: 0, x1: s.width, y1: s.height } : selDirty;
+        const rw = rect.x1 - rect.x0;
+        const rh = rect.y1 - rect.y0;
+        const img = new ImageData(rw, rh);
+        const d = img.data;
+        for (let y = 0; y < rh; y++) {
+          const row = (rect.y0 + y) * s.width + rect.x0;
+          for (let x = 0; x < rw; x++) {
+            const i = (y * rw + x) * 4;
+            d[i] = 243;
+            d[i + 1] = 201;
+            d[i + 2] = 74;
+            d[i + 3] = s.sel[row + x] ? 120 : 0;
+          }
+        }
+        selCanvas.getContext('2d').putImageData(img, rect.x0, rect.y0);
+        selDirty = null;
+      }
+      return selCanvas;
+    },
+
+    /* ---------- saving ---------- */
     async finalize() {
       if (!s.work) throw new Error('There is no photo to save.');
+      if (stroke) await api.endStroke();
       const rgba = rgbaCopy();
+      const original = s.originalId ? { keepId: s.originalId } : s.original;
       if (s.wholePhoto || !s.mask) {
         const out = await worker.call('finalizePhoto', { rgba, width: s.width, height: s.height }, [rgba.buffer]);
-        return { kind: 'photo', cutout: out.cutout, thumb: out.thumb, original: s.original, strength: s.strength, method: 'photo', shape: s.shape, colours: s.colours };
+        return { kind: 'photo', cutout: out.cutout, thumb: out.thumb, original, strength: s.strength, method: 'photo', shape: s.shape, colours: s.colours };
       }
       const mask = maskCopy();
       const out = await worker.call('finalize', { rgba, mask, width: s.width, height: s.height }, [rgba.buffer, mask.buffer]);
       const method = s.method && s.method !== 'photo' ? s.method : 'seg-2';
-      return { kind: 'cutout', cutout: out.cutout, thumb: out.thumb, original: s.original, strength: s.strength, method, shape: s.shape, colours: s.colours };
+      return { kind: 'cutout', cutout: out.cutout, thumb: out.thumb, original, strength: s.strength, method, shape: s.shape, colours: s.colours };
     },
-    /* the picture part of the draft; the photo is encoded once per open and the mask once per
-       change, so typing in the form does not re-encode anything */
+
+    /* ---------- the draft (FR-49): photo as JPEG, mask as PNG, selection dropped ---------- */
     async toDraft(drafts) {
       if (!s.work) return null;
-      if (draftCache.opens !== s.opens || !draftCache.photo) {
+      const fresh = draftCache.opens !== s.opens || !draftCache.photo || draftCache.width !== s.width || draftCache.height !== s.height || draftCache.steps !== s.steps;
+      if (fresh) {
         draftCache.photo = await drafts.encodePhoto(s.work);
         draftCache.opens = s.opens;
+        draftCache.width = s.width;
+        draftCache.height = s.height;
+        draftCache.steps = s.steps;
         draftCache.mask = null;
-        draftCache.maskBlob = null;
       }
       if (s.mask && draftCache.mask !== s.mask) {
         draftCache.maskBlob = await drafts.encodeMask(s.mask, s.width, s.height);
@@ -286,6 +506,7 @@ export function createSession(app) {
       }
       const d = { photo: draftCache.photo, mask: s.mask ? draftCache.maskBlob : null };
       for (const k of DRAFT_KEYS) d[k] = s[k];
+      d.options = Object.assign({}, s.options);
       return d;
     },
     async fromDraft(d) {
@@ -296,8 +517,7 @@ export function createSession(app) {
       const ctx = c.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(bmp, 0, 0, d.width, d.height);
       s.work = ctx.getImageData(0, 0, d.width, d.height);
-      c.width = 0;
-      c.height = 0;
+      freeCanvas(c);
       if (d.mask) {
         const mb = await decodeBlob(d.mask);
         const mc = document.createElement('canvas');
@@ -308,28 +528,46 @@ export function createSession(app) {
         const md = mctx.getImageData(0, 0, d.width, d.height).data;
         s.mask = new Uint8Array(d.width * d.height);
         for (let p = 0, i = 0; p < s.mask.length; p++, i += 4) s.mask[p] = md[i];
-        mc.width = 0;
-        mc.height = 0;
+        freeCanvas(mc);
       } else s.mask = null;
       for (const k of DRAFT_KEYS) if (d[k] !== undefined) s[k] = d[k];
+      s.options = Object.assign({}, DEFAULT_OPTIONS, d.options || {}, { angle: 0 });
+      s.tool = d.tool || 'move';
       s.wholePhoto = effectiveWhole();
-      s.history = [];
-      s.future = [];
       s.dirty = true;
       s.error = null;
-      s.status = 'ready';
       draftCache.opens = s.opens;
       draftCache.photo = d.photo;
+      draftCache.width = s.width;
+      draftCache.height = s.height;
       draftCache.mask = s.mask;
       draftCache.maskBlob = d.mask || null;
+      draftCache.steps = 0;
       dropPreview();
+      if (docOpen) worker.call('docClose', {}).catch(() => {});
+      docOpen = false;
+      await openDocument();
+      s.status = 'ready';
       emit();
     },
     reset() {
-      Object.assign(s, { status: 'empty', busy: null, error: null, work: null, original: null, mask: null, coverage: 0, lowContrast: false, separation: null, bg: null, method: null, autoWhole: false, extreme: null, choice: null, wholePhoto: false, strength: 50, colours: [], shape: null, guess: null, history: [], future: [], dirty: false });
+      if (docOpen) worker.call('docClose', {}).catch(() => {});
+      docOpen = false;
+      stroke = null;
+      Object.assign(s, { status: 'empty', busy: null, error: null, work: null, original: null, originalId: null, mask: null, sel: null, selection: 0, coverage: 0, lowContrast: false, separation: null, bg: null, method: null, autoWhole: false, extreme: null, choice: null, wholePhoto: false, strength: 50, colours: [], shape: null, guess: null, labels: { undo: null, redo: null }, steps: 0, dirty: false, tool: 'move', options: Object.assign({}, DEFAULT_OPTIONS) });
       dropPreview();
       emit();
+    },
+    close() {
+      api.reset();
+      listeners.clear();
     }
   };
   return api;
 }
+
+export function hexToRgb(hex) {
+  const m = /^#?([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i.exec(hex || '');
+  return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : [0, 0, 0];
+}
+export const rgbToHex = (rgb) => '#' + rgb.map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, '0')).join('');

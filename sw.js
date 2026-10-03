@@ -2,7 +2,7 @@
    opens without a connection. Bump VERSION on every release, or phones keep the old copy.
    Records and photos never pass through here: they live in the browser's own database.
    Only caches named awardrobe-* are touched, because other apps share this site. */
-const VERSION = 'awardrobe-v4';
+const VERSION = 'awardrobe-v5';
 const FILES = [
   './',
   'index.html',
@@ -28,6 +28,8 @@ const FILES = [
   'ui/screens/closet.js',
   'ui/screens/garment.js',
   'ui/screens/garment-edit.js',
+  'ui/screens/editor/stage.js',
+  'ui/screens/editor/tools.js',
   'ui/screens/outfits.js',
   'ui/screens/calendar.js',
   'ui/screens/stats.js',
