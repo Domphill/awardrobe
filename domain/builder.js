@@ -60,7 +60,11 @@ export function turnSlot(state, slotId, dir, garments, infoOf) {
 export function initialSlots(state, garments, infoOf) {
   const next = clone(state);
   if (next.pieces.length) {
-    next.slots = next.pieces.map((p) => ({ id: nextId('sl'), category: (infoOf(p.garmentId) || {}).category || 'other', pieceId: p.id }));
+    const order = CATEGORIES.map((c) => c.key);
+    next.slots = next.pieces
+      .slice()
+      .sort((a, b) => order.indexOf((infoOf(a.garmentId) || {}).category) - order.indexOf((infoOf(b.garmentId) || {}).category))
+      .map((p) => ({ id: nextId('sl'), category: (infoOf(p.garmentId) || {}).category || 'other', pieceId: p.id }));
     return next;
   }
   next.slots = ['tops', 'bottoms', 'shoes'].filter((c) => garments.some((g) => g.category === c && !isGone(g))).map((c) => ({ id: nextId('sl'), category: c, pieceId: null }));
@@ -133,7 +137,6 @@ export function suggestOutfitName(pieces, garmentOf) {
     .filter(Boolean);
   if (!names.length) return '';
   const shown = names.slice(0, 3).map((n, i) => (i === 0 ? n : n.charAt(0).toLowerCase() + n.slice(1)));
-  const first = shown[0].charAt(0).toLowerCase() + shown[0].slice(1);
-  const out = [first].concat(shown.slice(1)).join(' + ');
+  const out = shown.join(' + ');
   return names.length > 3 ? out + ' + ' + (names.length - 3) + ' more' : out;
 }

@@ -76,7 +76,7 @@ export function createShell({ mount, app, router, screens }) {
     const s = sheet({
       title: 'Add',
       opener,
-      body: h('div.menu', item('camera', 'Add a garment', 'Photograph a piece and cut out the background', () => router.go('edit', 'new')), item('layers', 'New outfit', 'Put pieces together and save the combination', () => router.go('outfit', 'new')), item('calendar', 'Log today', 'What you are wearing today', () => router.go('calendar', 'today')))
+      body: h('div.menu', item('camera', 'Add a garment', 'Photograph a piece and cut out the background', () => router.go('edit', 'new')), item('layers', 'New outfit', 'Put pieces together and save the combination', () => router.go('build', 'new')), item('calendar', 'Log today', 'What you are wearing today', () => router.go('calendar', 'today')))
     });
   };
 

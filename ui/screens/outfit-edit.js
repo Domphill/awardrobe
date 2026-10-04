@@ -95,10 +95,11 @@ function createLive({ app, router, shell }, key, existing) {
       else if (action === 'tidy') r = say(session.tidy());
       else if (action === 'mix') r = say(session.openMixer());
       else if (action === 'slotTurn') r = say(session.slotTurn(arg.slotId, arg.dir));
-      else if (action === 'slotAdd') r = session.slotAdd(arg);
+      else if (action === 'slotAdd') r = say(session.slotAdd(arg));
       else if (action === 'slotRemove') r = session.slotRemove(arg);
       else if (action === 'shuffle') r = say(session.shuffle());
       else if (action === 'addPieces') r = say(session.addPieces(arg));
+      else if (action === 'nudge') r = session.nudge(arg.id, arg.dx, arg.dy);
       edited();
       return r;
     } catch (e) {
@@ -262,9 +263,10 @@ function createLive({ app, router, shell }, key, existing) {
     app.drafts.onError = () => toast("Your draft couldn't be kept. Save soon, or free some space on the phone.");
     els.undo = btn('Undo', () => run('undo'), { icon: 'undo', id: 'build-undo', small: true });
     els.redo = iconBtn('redo', 'Redo', () => run('redo'), { id: 'build-redo' });
-    root.appendChild(h('div.page-top', iconBtn('back', 'Back', leave, { id: 'build-back' }), h('h1.title.small#build-title', existing ? existing.name || 'Outfit' : 'New outfit'), h('div.actions', els.undo, els.redo)));
+    root.appendChild(h('div.page-top', iconBtn('back', 'Back', leave, { id: 'build-back' }), h('h1.title.small#build-title', existing ? existing.name || 'Outfit' : 'New outfit')));
     if (stage) stage.destroy();
-    stage = createBuilderStage({ session, app, onSelect: () => update() });
+    stage = createBuilderStage({ session, app, onSelect: () => update(), onNudge: (id, dx, dy) => run('nudge', { id, dx, dy }) });
+    stage.el.appendChild(h('div.stage-tools', els.undo, els.redo));
     root.appendChild(stage.el);
     /* the tool bar for the selected piece (FR-64) */
     els.angle = h('input.input.angle#angle-value', { type: 'number', min: '-180', max: '180', step: '1', 'aria-label': 'Angle in degrees', onchange: () => run('angle', Number(els.angle.value)) });
@@ -272,7 +274,7 @@ function createLive({ app, router, shell }, key, existing) {
     els.tools = h(
       'div.piece-tools',
       h('div.actions', btn('Tilt left', () => run('tilt', -TILT_STEP), { icon: 'undo', small: true, id: 'tilt-left' }), els.angle, btn('Tilt right', () => run('tilt', TILT_STEP), { icon: 'redo', small: true, id: 'tilt-right' }), btn('Mirror', () => run('mirror'), { small: true, id: 'mirror' })),
-      els.slider,
+      h('div.slider-row', h('span.muted', 'Angle'), els.slider),
       h('div.actions', btn('Bring to front', () => run('layer', 'front'), { small: true, id: 'to-front' }), btn('Send to back', () => run('layer', 'back'), { small: true, id: 'to-back' }), btn('Take off', () => run('takeOff'), { small: true, icon: 'trash', id: 'take-off' }))
     );
     root.appendChild(els.tools);

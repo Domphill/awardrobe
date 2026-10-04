@@ -110,13 +110,27 @@ export function createGarments(app) {
       if (!g) return;
       const picIds = Object.values(g.pictures || {}).filter(Boolean);
       const outfits = r.list('outfits').filter((o) => (o.pieces || []).some((p) => p.garmentId === id));
+      /* an outfit that keeps other pieces gets its picture drawn again without this one; an
+         outfit with nothing else in it goes too (FR-18, FR-74) */
+      const repaints = [];
+      const emptied = [];
+      for (const o of outfits) {
+        const left = Object.assign({}, o, { pieces: (o.pieces || []).filter((p) => p.garmentId !== id) });
+        if (!left.pieces.length) emptied.push(o);
+        else repaints.push(await app.outfits.repaint(left));
+      }
       const days = r.list('days').filter((d) => (d.garments || []).includes(id));
       await r.tx(['garments', 'pictures', 'outfits', 'days'], (ops) => {
         ops.delete('garments', id);
         for (const p of picIds) ops.delete('pictures', p);
-        for (const o of outfits) {
-          o.pieces = o.pieces.filter((p) => p.garmentId !== id);
-          ops.put('outfits', touch(o));
+        for (const rp of repaints) {
+          for (const p of rp.put) ops.put('pictures', p);
+          for (const pid of rp.deletePictures) ops.delete('pictures', pid);
+          ops.put('outfits', rp.rec);
+        }
+        for (const o of emptied) {
+          for (const pid of [o.picture, o.thumb]) if (pid) ops.delete('pictures', pid);
+          ops.delete('outfits', o.id);
         }
         for (const d of days) {
           d.garments = d.garments.filter((x) => x !== id);

@@ -5,10 +5,15 @@
 import { h, clear } from '../../components.js';
 import { gestureTransform, pieceBox } from '../../../domain/image/geometry.js';
 import { CANVAS_H } from '../../../domain/layout.js';
+import { MIN_W, MAX_W } from '../../../app/builder-session.js';
+
+/* a piece's own canvas is drawn no wider than this: the stage shows it far smaller than the
+   1200 px cut-out, and eight full copies would cost 35 MB (NFR-13) */
+const PIECE_CANVAS_W = 600;
 
 const TAP_SLOP = 6;
 
-export function createBuilderStage({ session, app, onSelect }) {
+export function createBuilderStage({ session, app, onSelect, onNudge }) {
   const el = h('div.bstage#build-stage', { role: 'group', 'aria-label': 'The outfit canvas' });
   const nodes = new Map();
   const pointers = new Map();
@@ -39,9 +44,10 @@ export function createBuilderStage({ session, app, onSelect }) {
         .image(g.pictures.cutout, 'full')
         .then((img) => {
           if (!img || !node.isConnected) return;
-          canvas.width = img.width;
-          canvas.height = img.height;
-          canvas.getContext('2d').drawImage(img, 0, 0);
+          const k = Math.min(1, PIECE_CANVAS_W / img.width);
+          canvas.width = Math.round(img.width * k);
+          canvas.height = Math.round(img.height * k);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
           canvas.dataset.drawn = '1';
         })
         .catch(() => {});
@@ -54,6 +60,12 @@ export function createBuilderStage({ session, app, onSelect }) {
     for (const p of s.pieces) {
       seen.add(p.id);
       let node = nodes.get(p.id);
+      /* a revolver turn keeps the piece and changes its garment: the node is made afresh */
+      if (node && node.dataset.garmentId !== p.garmentId) {
+        node.remove();
+        nodes.delete(p.id);
+        node = null;
+      }
       if (!node) {
         node = makeNode(p);
         nodes.set(p.id, node);
@@ -77,6 +89,7 @@ export function createBuilderStage({ session, app, onSelect }) {
   };
   const onDown = (e) => {
     if (e.pointerType === 'mouse' && e.button !== 0) return;
+    if (e.target && e.target.closest && e.target.closest('.stage-tools')) return;
     const node = pieceAt(e.target);
     try {
       el.setPointerCapture(e.pointerId);
@@ -101,22 +114,26 @@ export function createBuilderStage({ session, app, onSelect }) {
       const p = session.state.pieces.find((q) => q.id === id);
       if (!p) return;
       session.beginGesture(id);
-      gesture = { id, kind: onHandle ? 'resize' : 'move', from: Object.assign({}, p), moved: false };
+      gesture = { id, kind: onHandle ? 'resize' : 'move', from: Object.assign({}, p), moved: false, ids: [e.pointerId] };
       return;
     }
     if (pointers.size === 2) {
       const [a, b] = [...pointers.values()];
-      if (a.id !== b.id) return;
+      if (a.id !== b.id || !gesture || gesture.id !== id) {
+        /* a second finger somewhere else is not part of this gesture */
+        pointers.delete(e.pointerId);
+        return;
+      }
       /* two fingers on the same piece: twist and pinch from here, whatever was happening */
       const p = session.state.pieces.find((q) => q.id === id);
       if (!p) return;
-      gesture = { id, kind: 'twist', from: Object.assign({}, p), start: [{ x: a.x, y: a.y }, { x: b.x, y: b.y }], moved: true };
+      gesture = { id, kind: 'twist', from: Object.assign({}, p), start: [{ x: a.x, y: a.y }, { x: b.x, y: b.y }], moved: true, ids: [...pointers.keys()] };
       if (!session.gesturing) session.beginGesture(id);
     }
   };
   const onMove = (e) => {
     const pt = pointers.get(e.pointerId);
-    if (!pt || !gesture) return;
+    if (!pt || !gesture || !gesture.ids.includes(e.pointerId)) return;
     pt.x = e.clientX;
     pt.y = e.clientY;
     if (Math.hypot(pt.x - pt.startX, pt.y - pt.startY) > TAP_SLOP) gesture.moved = true;
@@ -126,7 +143,7 @@ export function createBuilderStage({ session, app, onSelect }) {
       const t = gestureTransform(gesture.start, [{ x: a.x, y: a.y }, { x: b.x, y: b.y }]);
       const from = gesture.from;
       const aspect = infoOf(from.garmentId).aspect;
-      const w = from.w * t.scale;
+      const w = Math.max(MIN_W, Math.min(MAX_W, from.w * t.scale));
       /* grow about the centre, and carry the fingers' drift */
       const cx = from.x + from.w / 2 + t.dx / W;
       const cy = from.y + (from.w * aspect) / 2 + t.dy / W;
@@ -138,34 +155,40 @@ export function createBuilderStage({ session, app, onSelect }) {
       return;
     }
     if (gesture.kind === 'resize') {
-      /* the corner handle: the width follows the finger's distance from the opposite corner */
-      const aspect = infoOf(gesture.from.garmentId).aspect;
-      const dw = ((pt.x - pt.startX) + (pt.y - pt.startY) / aspect) / W / 2;
-      session.updateGesture({ w: gesture.from.w + dw * 2 });
+      /* the corner handle: the finger's movement taken into the piece's own frame (turned back by
+         the piece's angle, mirrored when the piece is), the width following whichever of the
+         finger's x or y asks for more */
+      const from = gesture.from;
+      const aspect = infoOf(from.garmentId).aspect;
+      const r = (-(from.rot || 0) * Math.PI) / 180;
+      const dx = pt.x - pt.startX;
+      const dy = pt.y - pt.startY;
+      let px = dx * Math.cos(r) - dy * Math.sin(r);
+      const py = dx * Math.sin(r) + dy * Math.cos(r);
+      if (from.flip) px = -px;
+      session.updateGesture({ w: from.w + Math.max(px, py / aspect) / W });
     }
   };
   const finish = () => {
     if (!gesture) return;
     const g = gesture;
     gesture = null;
-    pointers.clear();
+    for (const id of g.ids) pointers.delete(id);
+    if (!g.moved) session.updateGesture(g.from);
     const label = g.kind === 'twist' ? 'turn' : g.kind;
     lastAction = Promise.resolve(session.endGesture(label));
   };
   const onUp = (e) => {
-    const pt = pointers.get(e.pointerId);
-    pointers.delete(e.pointerId);
-    if (!gesture) return;
-    if (gesture.kind === 'twist') {
-      if (pointers.size < 2) finish();
+    if (!gesture || !gesture.ids.includes(e.pointerId)) {
+      pointers.delete(e.pointerId);
       return;
     }
-    void pt;
+    /* any finger of the gesture lifting ends it; a finger still down is not a new gesture */
     finish();
   };
   const onCancel = () => {
-    pointers.clear();
     finish();
+    pointers.clear();
   };
   const onKey = (e) => {
     const node = pieceAt(e.target);
@@ -174,6 +197,14 @@ export function createBuilderStage({ session, app, onSelect }) {
       e.preventDefault();
       session.select(node.dataset.pieceId);
       if (onSelect) onSelect(node.dataset.pieceId);
+      return;
+    }
+    const step = e.shiftKey ? 0.1 : 0.01;
+    const moves = { ArrowLeft: [-step, 0], ArrowRight: [step, 0], ArrowUp: [0, -step], ArrowDown: [0, step] };
+    if (moves[e.key] && onNudge) {
+      e.preventDefault();
+      if (session.state.selectedId !== node.dataset.pieceId) session.select(node.dataset.pieceId);
+      onNudge(node.dataset.pieceId, moves[e.key][0], moves[e.key][1]);
     }
   };
   el.addEventListener('pointerdown', onDown);

@@ -4,7 +4,8 @@
 import { createStack, jsonCommand } from '../domain/commands.js';
 import { tidyLayout, placeNew } from '../domain/layout.js';
 import { candidates, turnSlot, initialSlots, addSlot, removeSlot, shuffle, suggestOutfitName, nextId } from '../domain/builder.js';
-import { isGone } from '../domain/model.js';
+import { isGone, category as categoryOf } from '../domain/model.js';
+const categoryLabel = (key) => categoryOf(key).label;
 
 export const TILT_STEP = 5;
 export const MIN_W = 0.12;
@@ -139,11 +140,16 @@ export function createBuilderSession(app, opts) {
     },
     layer(id, where) {
       if (!piece(id)) return;
-      command('layer', () => {
+      command(where === 'back' ? 'send to back' : 'bring to front', () => {
         const p = piece(id);
         const others = s.pieces.filter((q) => q.id !== id);
-        p.z = where === 'back' ? Math.min(0, ...others.map((q) => q.z)) - 1 : Math.max(0, ...others.map((q) => q.z)) + 1;
+        p.z = where === 'back' ? Math.min(0, ...others.map((q) => q.z | 0)) - 1 : Math.max(0, ...others.map((q) => q.z | 0)) + 1;
       });
+    },
+    /* arrow keys: a nudge of one per cent of the stage width, ten with Shift (NFR-22) */
+    nudge(id, dx, dy) {
+      if (!piece(id) || (!dx && !dy)) return;
+      command('move', () => clampPiece(Object.assign(piece(id), { x: piece(id).x + dx, y: piece(id).y + dy })));
     },
     tidy() {
       if (!s.pieces.length) return { nothing: true, message: 'Add some pieces first.' };
@@ -199,12 +205,19 @@ export function createBuilderSession(app, opts) {
         return { nothing: true, message: 'Mix and match needs clothes in at least two categories.' };
       }
       const wasEmpty = !s.pieces.length;
-      command('mix and match', () => {
-        let next = initialSlots(get(), wearable(), infoOf);
-        if (wasEmpty) for (const sl of next.slots) next = turnSlot(next, sl.id, 1, wearable(), infoOf);
-        s.pieces = next.pieces;
+      if (wasEmpty) {
+        /* filling the empty canvas is a change, so it is a step; on a placed canvas the slots are
+           only a view of the pieces and opening them is no step */
+        command('mix and match slots', () => {
+          let next = initialSlots(get(), wearable(), infoOf);
+          for (const sl of next.slots) next = turnSlot(next, sl.id, 1, wearable(), infoOf);
+          s.pieces = next.pieces;
+          s.slots = next.slots;
+        });
+      } else {
+        const next = initialSlots(get(), wearable(), infoOf);
         s.slots = next.slots;
-      });
+      }
       s.mixer = true;
       emit();
       return {};
@@ -220,7 +233,7 @@ export function createBuilderSession(app, opts) {
       const slot = s.slots.find((x) => x.id === slotId);
       if (!slot) return;
       if (api.ringOf(slot.category).length <= 2) return { nothing: true, message: 'Only one of those to choose from.' };
-      command('slot turn', () => {
+      command('turn of ' + categoryLabel(slot.category).toLowerCase(), () => {
         const next = turnSlot(get(), slotId, dir, wearable(), infoOf);
         s.pieces = next.pieces;
         s.slots = next.slots;
@@ -228,7 +241,9 @@ export function createBuilderSession(app, opts) {
       return {};
     },
     slotAdd(category) {
-      command('add slot', () => {
+      const ring = candidates(wearable(), category).filter(Boolean);
+      if (ring.length && ring.every((g) => s.pieces.some((p) => p.garmentId === g.id))) return { nothing: true, message: 'Every ' + categoryLabel(category).toLowerCase() + ' you have is already on the canvas.' };
+      command('new slot', () => {
         let next = addSlot(get(), category);
         const slot = next.slots[next.slots.length - 1];
         const ring = candidates(wearable(), category);
@@ -246,7 +261,7 @@ export function createBuilderSession(app, opts) {
     },
     slotRemove(slotId) {
       if (!s.slots.some((x) => x.id === slotId)) return;
-      command('remove slot', () => {
+      command('slot removed', () => {
         const next = removeSlot(get(), slotId);
         s.pieces = next.pieces;
         s.slots = next.slots;
@@ -290,7 +305,7 @@ export function createBuilderSession(app, opts) {
     },
     /* ---------- the draft (FR-49) ---------- */
     toDraft() {
-      if (!s.pieces.length && !s.dirty) return null;
+      if (!s.dirty) return null;
       const d = { outfitId: existing ? existing.id : null };
       for (const k of DRAFT_KEYS) d[k] = JSON.parse(JSON.stringify(s[k]));
       return d;

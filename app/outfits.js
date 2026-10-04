@@ -7,9 +7,21 @@ import { ValidationError } from './garments.js';
 const round = (v) => Math.round(v * 10000) / 10000;
 const clean = (p) => ({ garmentId: p.garmentId, x: round(p.x), y: round(p.y), w: round(p.w), z: p.z | 0, rot: Math.round(p.rot || 0), flip: !!p.flip });
 
+const pictureRecord = (kind, layers) => newRecord('p', { kind, colour: layers.colour, alpha: layers.alpha, width: layers.width, height: layers.height, bytes: layers.colour.size + (layers.alpha ? layers.alpha.size : 0) });
+
 export function createOutfits(app) {
   const r = app.records;
   const api = {
+    /* the writes that bring an outfit's picture up to date after its pieces changed, for a
+       transaction someone else owns (the garment delete cascade, FR-18) */
+    async repaint(outfit) {
+      const rendered = await app.pictures.renderOutfit(outfit.pieces);
+      const picture = pictureRecord('outfit', rendered);
+      const thumb = pictureRecord('thumb', rendered.thumb);
+      const old = [outfit.picture, outfit.thumb].filter(Boolean);
+      const rec = touch(Object.assign({}, outfit, { picture: picture.id, thumb: thumb.id }));
+      return { rec, put: [picture, thumb], deletePictures: old };
+    },
     garmentOf: (id) => r.get('garments', id) || null,
     validate: (form, pieces) => validateOutfit({ name: form.name, pieces }, api.garmentOf),
     /* the outfit and its picture together (FR-74); the old picture goes in the same write */
@@ -17,23 +29,26 @@ export function createOutfits(app) {
       const problems = api.validate(form, pieces);
       if (problems.length) throw new ValidationError(problems);
       const rendered = await app.pictures.renderOutfit(pieces);
-      const picture = newRecord('p', { kind: 'outfit', colour: rendered.colour, alpha: rendered.alpha, width: rendered.width, height: rendered.height, bytes: rendered.colour.size + (rendered.alpha ? rendered.alpha.size : 0) });
+      const picture = pictureRecord('outfit', rendered);
+      const thumb = pictureRecord('thumb', rendered.thumb);
       const rec = Object.assign(existing ? Object.assign({}, existing) : newRecord('o', {}), {
         name: String(form.name || '').trim(),
         seasons: (form.seasons || []).slice(),
         occasions: (form.occasions || []).slice(),
         favourite: !!form.favourite,
         pieces: pieces.map(clean),
-        picture: picture.id
+        picture: picture.id,
+        thumb: thumb.id
       });
       touch(rec);
-      const oldPicture = existing && existing.picture;
+      const old = [existing && existing.picture, existing && existing.thumb].filter(Boolean);
       await r.tx(['outfits', 'pictures'], (ops) => {
         ops.put('pictures', picture);
-        if (oldPicture) ops.delete('pictures', oldPicture);
+        ops.put('pictures', thumb);
+        for (const id of old) ops.delete('pictures', id);
         ops.put('outfits', rec);
       });
-      if (oldPicture) app.pictures.forget(oldPicture);
+      for (const id of old) app.pictures.forget(id);
       return { outfit: r.get('outfits', rec.id), skipped: rendered.skipped };
     },
     async setFavourite(id, on) {
@@ -56,10 +71,10 @@ export function createOutfits(app) {
           for (const p of o.pieces || []) if (r.get('garments', p.garmentId) && !rec.garments.includes(p.garmentId)) rec.garments.push(p.garmentId);
           ops.put('days', touch(rec));
         }
-        if (o.picture) ops.delete('pictures', o.picture);
+        for (const pid of [o.picture, o.thumb]) if (pid) ops.delete('pictures', pid);
         ops.delete('outfits', id);
       });
-      if (o.picture) app.pictures.forget(o.picture);
+      for (const pid of [o.picture, o.thumb]) if (pid) app.pictures.forget(pid);
     }
   };
   return api;

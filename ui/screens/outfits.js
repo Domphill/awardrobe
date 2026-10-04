@@ -21,7 +21,7 @@ export const outfits = {
           h(
             'button.card-item.outfit-card',
             { type: 'button', dataset: { id: o.id }, onclick: () => router.go('outfit', o.id) },
-            pic(() => app.pictures.image(o.picture, 'thumb'), { alt: o.name || 'Outfit', w: 300, h: 400 }),
+            pic(() => app.pictures.image(o.thumb || o.picture, 'thumb'), { alt: o.name || 'Outfit', w: 300, h: 400 }),
             h('span.card-name', o.name || 'Outfit'),
             o.favourite ? h('span.fav-mark', { 'aria-hidden': 'true' }, icon('star')) : null
           )

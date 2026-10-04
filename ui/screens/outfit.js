@@ -36,7 +36,7 @@ export const outfit = {
     root.appendChild(h('h1.title#outfit-name', o.name || 'Outfit'));
     const tags = (o.seasons || []).concat(o.occasions || []);
     if (tags.length) root.appendChild(h('div.chips', tags.map((t) => chip(t))));
-    root.appendChild(h('div.stats#outfit-stats', stat(wears.wears ? plural(wears.wears, 'wear') : 'Not worn yet', wears.wears ? 'worn' : '', 'stat-outfit-wears'), stat(wears.lastWorn ? relativeDay(wears.lastWorn, app.todayKey()) : 'Never', 'last worn', 'stat-outfit-last')));
+    root.appendChild(h('div.stats#outfit-stats', wears.wears ? stat(String(wears.wears), plural(wears.wears, 'wear').replace(/^\d+ /, ''), 'stat-outfit-wears') : stat('Not worn yet', 'so far', 'stat-outfit-wears'), wears.lastWorn ? stat(relativeDay(wears.lastWorn, app.todayKey()), 'last worn', 'stat-outfit-last') : null));
     const log = async (day) => {
       try {
         await app.days.log({ outfitId: o.id, day });

@@ -517,11 +517,17 @@ input[type='range'].tape:disabled {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;
+  /* the pieces' layer order stays inside the canvas, under sheets and toasts */
+  isolation: isolate;
+}
+.bstage .stage-tools {
+  z-index: 10000;
 }
 @media (orientation: landscape) and (max-height: 520px) {
   .bstage {
-    aspect-ratio: auto;
-    height: 60vh;
+    width: calc(66vh * 0.75);
+    max-width: 100%;
+    margin: 0 auto;
   }
 }
 .piece {
@@ -589,8 +595,12 @@ input[type='range'].tape:disabled {
   opacity: 0.5;
 }
 .piece-tools .angle {
-  width: 84px;
+  width: 72px;
   text-align: center;
+}
+.piece-tools .actions .btn {
+  padding-left: 12px;
+  padding-right: 12px;
 }
 .piece-tools .slider {
   width: 100%;
@@ -627,8 +637,10 @@ input[type='range'].tape:disabled {
   border-radius: var(--radius-sm);
   color: var(--graphite);
   opacity: 0.7;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
 .slot-prev:disabled,
 .slot-next:disabled {

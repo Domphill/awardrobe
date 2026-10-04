@@ -68,7 +68,7 @@ export const garment = {
       h(
         'div.danger-zone',
         btn('Delete this garment', async () => {
-          const ok = await confirmSheet({ title: 'Delete this garment?', body: 'It leaves every outfit and every day it is in, and its pictures are deleted. If you no longer own it but want it in your stats, mark it gone instead (coming with the calendar update).', confirm: 'Delete', danger: true });
+          const ok = await confirmSheet({ title: 'Delete this garment?', body: 'It leaves every outfit and every day it is in, and its pictures are deleted; an outfit with nothing else in it is deleted too. If you no longer own it but want it in your stats, mark it gone instead (coming with the calendar update).', confirm: 'Delete', danger: true });
           if (!ok) return;
           try {
             await app.garments.remove(g.id);

@@ -134,6 +134,62 @@ export async function renderOutfitCanvas(pieces, imageOf, garmentOf) {
   return { canvas: c, skipped };
 }
 
+export const OUTFIT_THUMB_W = 300;
+/* the box round the opaque pixels with a margin, as a new canvas; the whole canvas when empty */
+export function trimCanvas(canvas, marginFrac) {
+  const W = canvas.width;
+  const H = canvas.height;
+  const d = canvas.getContext('2d').getImageData(0, 0, W, H).data;
+  let x0 = W;
+  let y0 = H;
+  let x1 = -1;
+  let y1 = -1;
+  for (let y = 0; y < H; y++) {
+    for (let x = 0; x < W; x++) {
+      if (d[(y * W + x) * 4 + 3] < 8) continue;
+      if (x < x0) x0 = x;
+      if (x > x1) x1 = x;
+      if (y < y0) y0 = y;
+      if (y > y1) y1 = y;
+    }
+  }
+  if (x1 < 0) {
+    x0 = 0;
+    y0 = 0;
+    x1 = W - 1;
+    y1 = H - 1;
+  }
+  const mx = Math.round((x1 - x0 + 1) * (marginFrac || 0));
+  const my = Math.round((y1 - y0 + 1) * (marginFrac || 0));
+  x0 = Math.max(0, x0 - mx);
+  y0 = Math.max(0, y0 - my);
+  x1 = Math.min(W - 1, x1 + mx);
+  y1 = Math.min(H - 1, y1 + my);
+  const out = document.createElement('canvas');
+  out.width = x1 - x0 + 1;
+  out.height = y1 - y0 + 1;
+  out.getContext('2d', { willReadFrequently: true }).drawImage(canvas, x0, y0, out.width, out.height, 0, 0, out.width, out.height);
+  return out;
+}
+/* a canvas with transparency as colour JPEG plus alpha PNG */
+async function encodeLayers(canvas) {
+  const W = canvas.width;
+  const H = canvas.height;
+  const d = canvas.getContext('2d').getImageData(0, 0, W, H).data;
+  const alpha = new Uint8Array(W * H);
+  const rgba = new Uint8ClampedArray(d.length);
+  for (let p = 0, i = 0; p < alpha.length; p++, i += 4) {
+    alpha[p] = d[i + 3];
+    rgba[i] = d[i];
+    rgba[i + 1] = d[i + 1];
+    rgba[i + 2] = d[i + 2];
+    rgba[i + 3] = 255;
+  }
+  const colour = await toJpeg(rgba, W, H, 0.86);
+  const alphaBlob = await encodeGrayPng(alpha, W, H);
+  return { colour, alpha: alphaBlob, width: W, height: H };
+}
+
 export function createPictures(records) {
   const caches = { thumb: lru(LIMITS.thumb, freeCanvas), full: lru(LIMITS.full, freeCanvas) };
   const pending = new Map();
@@ -143,22 +199,21 @@ export function createPictures(records) {
        read are left out and named */
     async renderOutfit(pieces) {
       const { canvas, skipped } = await renderOutfitCanvas(pieces, api.image, (id) => records.get('garments', id));
-      const W = canvas.width;
-      const H = canvas.height;
-      const d = canvas.getContext('2d').getImageData(0, 0, W, H).data;
-      const alpha = new Uint8Array(W * H);
-      const rgba = new Uint8ClampedArray(d.length);
-      for (let p = 0, i = 0; p < alpha.length; p++, i += 4) {
-        alpha[p] = d[i + 3];
-        rgba[i] = d[i];
-        rgba[i + 1] = d[i + 1];
-        rgba[i + 2] = d[i + 2];
-        rgba[i + 3] = 255;
-      }
+      /* trimmed to the pieces with a 3% margin (architecture 7), then a small thumb for lists */
+      const full = trimCanvas(canvas, 0.03);
       freeCanvas(canvas);
-      const colour = await toJpeg(rgba, W, H, 0.86);
-      const alphaBlob = await encodeGrayPng(alpha, W, H);
-      return { colour, alpha: alphaBlob, width: W, height: H, skipped };
+      const big = await encodeLayers(full);
+      const tw = Math.min(OUTFIT_THUMB_W, full.width);
+      const small = document.createElement('canvas');
+      small.width = tw;
+      small.height = Math.max(1, Math.round((full.height * tw) / full.width));
+      const sctx = small.getContext('2d', { willReadFrequently: true });
+      sctx.imageSmoothingQuality = 'high';
+      sctx.drawImage(full, 0, 0, small.width, small.height);
+      const thumb = await encodeLayers(small);
+      freeCanvas(full);
+      freeCanvas(small);
+      return Object.assign({}, big, { thumb, skipped });
     },
     /* a drawable canvas of a stored picture; `which` is 'thumb' for cards or 'full' for pages */
     image(id, which) {
