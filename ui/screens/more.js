@@ -51,6 +51,13 @@ export const more = {
 
     root.appendChild(
       card(
+        sectionHead('New photos'),
+        field('Cut out the garment automatically', segmented({ name: 'autoCutout', label: 'Cut out new photos automatically', value: prefs.autoCutout === false ? 'off' : 'on', options: [{ value: 'on', label: 'Yes, cut it out' }, { value: 'off', label: 'No, keep the photo' }], onChange: (v) => save({ autoCutout: v !== 'off' }) }), 'With this off, a new photo is kept as it is. You can still cut it out in the editor by unticking "Keep the whole photo instead".')
+      )
+    );
+
+    root.appendChild(
+      card(
         sectionHead('Privacy'),
         h('p.muted#privacy', 'Everything in aWardrobe stays on this device: your garments, photos, outfits, calendar and settings. Nothing is sent anywhere. The one exception is optional: if you add a town for the weather, that town’s map position is sent to Open-Meteo, a free weather service, to fetch the forecast, and nothing else.'),
         h('p.fineprint#version', 'Version ' + versionNumber() + '.')

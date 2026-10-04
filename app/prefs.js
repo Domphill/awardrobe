@@ -1,6 +1,6 @@
 /* aWardrobe app: settings. Stored as one meta record; defaults fill anything not set. */
 
-export const DEFAULT_PREFS = { theme: 'system', currency: '£', tempUnit: 'C', place: null, onboarded: false };
+export const DEFAULT_PREFS = { theme: 'system', currency: '£', tempUnit: 'C', place: null, onboarded: false, autoCutout: true };
 
 export function createPrefs(records) {
   const listeners = new Set();

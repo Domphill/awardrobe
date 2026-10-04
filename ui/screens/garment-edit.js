@@ -115,7 +115,9 @@ function createLive({ app, router, shell }, key, existing) {
     if (!file || busyNow()) return;
     stage.setStatic(null);
     try {
-      await session.open(file);
+      /* the setting on the More page: a new photo kept whole, the cut-out made in the background
+         for the day the box is unticked (FR-50) */
+      await session.open(file, app.prefs.get().autoCutout === false ? { seed: { wholePhoto: true } } : {});
     } catch (e) {
       update();
       return;
