@@ -90,6 +90,16 @@ export function validateOutfit(o, garmentOf) {
   return problems;
 }
 
+/* ---------- planned days (FR-80, FR-81) ---------- */
+/* a day after today is a plan; today and earlier are worn */
+export const isPlanned = (dayKey, todayKey) => dayKey > todayKey;
+/* the planned days that have passed and were never asked about, oldest first */
+export function passedPlans(days, todayKey) {
+  return (days || [])
+    .filter((d) => d && d.planned && !d.planAsked && d.id < todayKey && ((d.outfits && d.outfits.length) || (d.garments && d.garments.length)))
+    .sort((a, b) => a.id.localeCompare(b.id));
+}
+
 /* ---------- wears and cost per wear (FR-11, FR-16, FR-80, FR-96, FR-99) ---------- */
 export const priceOf = (g) => (g.price === null || g.price === undefined || g.price === '' || isNaN(Number(g.price)) ? null : Number(g.price));
 export const isGone = (g) => g.status === 'gone';
