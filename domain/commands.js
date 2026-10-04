@@ -76,3 +76,28 @@ export function createStack() {
   };
   return api;
 }
+
+/* A command for a small JSON state (the outfit builder, FR-72): `get()` gives the state object,
+   `set(next)` replaces it, `change()` makes the change. The records are the state before and
+   after, so undo and redo land exactly on them. */
+export function jsonCommand(label, get, set, change) {
+  const before = JSON.stringify(get());
+  let after = null;
+  return {
+    label,
+    bytes: before.length * 2,
+    run() {
+      if (after === null) {
+        change();
+        after = JSON.stringify(get());
+        this.bytes = (before.length + after.length) * 2;
+      } else set(JSON.parse(after));
+    },
+    undo() {
+      set(JSON.parse(before));
+    },
+    redo() {
+      set(JSON.parse(after));
+    }
+  };
+}

@@ -97,3 +97,42 @@ export function createViewport({ imageW, imageH, viewW, viewH, dpr }) {
   };
   return v;
 }
+
+/* ---------- the outfit builder (architecture section 7) ---------- */
+const pt = (p) => (Array.isArray(p) ? { x: p[0], y: p[1] } : p);
+/* What two fingers did since they landed: the turn in degrees (clockwise positive, the short way
+   round), the spread as a ratio, and how far their midpoint moved (FR-65). */
+export function gestureTransform(start, now) {
+  const [a0, b0] = start.map(pt);
+  const [a1, b1] = now.map(pt);
+  const d0 = Math.hypot(b0.x - a0.x, b0.y - a0.y) || 1;
+  const d1 = Math.hypot(b1.x - a1.x, b1.y - a1.y) || 1;
+  let angle = ((Math.atan2(b1.y - a1.y, b1.x - a1.x) - Math.atan2(b0.y - a0.y, b0.x - a0.x)) * 180) / Math.PI;
+  angle = ((angle + 540) % 360) - 180;
+  return { angle, scale: d1 / d0, dx: (a1.x + b1.x - a0.x - b0.x) / 2, dy: (a1.y + b1.y - a0.y - b0.y) / 2 };
+}
+/* A piece's box on a stage `stageW` pixels wide, before any turn: position and width are
+   fractions of the stage width, the height follows the picture's own shape. */
+export function pieceBox(piece, stageW, aspect) {
+  const width = piece.w * stageW;
+  const height = width * (aspect || 1);
+  const left = piece.x * stageW;
+  const top = piece.y * stageW;
+  return { left, top, width, height, cx: left + width / 2, cy: top + height / 2 };
+}
+/* The four corners (top-left, top-right, bottom-right, bottom-left) after the builder's CSS
+   transform `rotate(rot) scaleX(flip ? -1 : 1)` about the centre: the mirror first, then the
+   turn, clockwise on screen (FR-64, FR-74). The saved picture is drawn with the same numbers. */
+export function pieceCorners(piece, stageW, aspect) {
+  const b = pieceBox(piece, stageW, aspect);
+  const r = ((piece.rot || 0) * Math.PI) / 180;
+  const cos = Math.cos(r);
+  const sin = Math.sin(r);
+  const sx = piece.flip ? -1 : 1;
+  const hw = b.width / 2;
+  const hh = b.height / 2;
+  return [[-hw, -hh], [hw, -hh], [hw, hh], [-hw, hh]].map(([dx, dy]) => {
+    const mx = dx * sx;
+    return [b.cx + mx * cos - dy * sin, b.cy + mx * sin + dy * cos];
+  });
+}

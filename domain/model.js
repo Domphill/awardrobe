@@ -72,6 +72,24 @@ export function validateGarment(g) {
   return problems;
 }
 
+/* An outfit needs at least one piece; two pieces may share a category (a shirt under a jumper),
+   but one garment cannot be two pieces (FR-67, FR-74). `garmentOf(id)` looks a garment up. */
+export function validateOutfit(o, garmentOf) {
+  const problems = [];
+  const pieces = (o && o.pieces) || [];
+  if (!pieces.length) problems.push('Add at least one piece first.');
+  const seen = new Set();
+  for (const p of pieces) {
+    if (seen.has(p.garmentId)) {
+      problems.push('The same garment is on the canvas twice; take one off.');
+      break;
+    }
+    seen.add(p.garmentId);
+  }
+  void garmentOf;
+  return problems;
+}
+
 /* ---------- wears and cost per wear (FR-11, FR-16, FR-80, FR-96, FR-99) ---------- */
 export const priceOf = (g) => (g.price === null || g.price === undefined || g.price === '' || isNaN(Number(g.price)) ? null : Number(g.price));
 export const isGone = (g) => g.status === 'gone';
