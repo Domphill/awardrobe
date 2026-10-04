@@ -11,6 +11,8 @@ import { todayKey as dayOf } from '../domain/model.js';
 import { createPictures } from './pictures.js';
 import { createDrafts } from './drafts.js';
 import { createGarments } from './garments.js';
+import { createOutfits } from './outfits.js';
+import { createDays } from './days.js';
 
 const MAX_ERRORS = 20;
 const OPEN_TIMEOUT = 8000;
@@ -133,5 +135,7 @@ export async function createApp(opts) {
   app.pictures = createPictures(records);
   app.drafts = createDrafts(records);
   app.garments = createGarments(app);
+  app.days = createDays(app);
+  app.outfits = createOutfits(app);
   return app;
 }

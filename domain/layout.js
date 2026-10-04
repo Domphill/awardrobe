@@ -67,7 +67,9 @@ export function placeNew(existing, newPieces, infoOf) {
   const zTop = existing.reduce((m, p) => Math.max(m, p.z || 0), 0);
   const out = [];
   let k = 1;
-  for (const p of newPieces) {
+  /* a batch added together keeps the layout's layer order among themselves (tops over bottoms) */
+  const batch = newPieces.slice().sort((a, b) => spotFor((infoOf(a.garmentId) || {}).category).z - spotFor((infoOf(b.garmentId) || {}).category).z || newPieces.indexOf(a) - newPieces.indexOf(b));
+  for (const p of batch) {
     const info = infoOf(p.garmentId) || { category: 'other', aspect: 1 };
     const key = spotKey(p, infoOf);
     const nth = counts[key] || 0;

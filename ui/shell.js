@@ -6,7 +6,7 @@ import { icon, logo } from './icons.js';
 
 const TABS = [
   { name: 'closet', label: 'Closet', icon: 'hanger', also: ['garment', 'edit'] },
-  { name: 'outfits', label: 'Outfits', icon: 'layers', also: ['outfit'] },
+  { name: 'outfits', label: 'Outfits', icon: 'layers', also: ['outfit', 'build'] },
   { name: 'add', label: 'Add', icon: 'plus', add: true },
   { name: 'calendar', label: 'Calendar', icon: 'calendar', also: ['week'] },
   { name: 'stats', label: 'Stats', icon: 'stats', also: [] },
@@ -50,7 +50,7 @@ export function createShell({ mount, app, router, screens }) {
   mount.appendChild(h('div#layer'));
   mount.appendChild(h('div#toasts', { 'aria-live': 'polite' }));
 
-  const shell = { el: frame, main, current: null, onboardedThisSession: false, throwOnce: null, throwAlways: null, errored: false, renders: 0, pickPhoto: null, editor: null, onLeave: null, onHide: null };
+  const shell = { el: frame, main, current: null, onboardedThisSession: false, throwOnce: null, throwAlways: null, errored: false, renders: 0, pickPhoto: null, editor: null, builder: null, onLeave: null, onHide: null };
 
   for (const t of TABS) {
     if (t.add) {

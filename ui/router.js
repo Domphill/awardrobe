@@ -2,7 +2,7 @@
    The position inside the app's own history is kept in history.state, so the browser's Back
    button and the app's back arrow agree. */
 
-export const SCREENS = ['closet', 'garment', 'edit', 'outfits', 'outfit', 'calendar', 'week', 'stats', 'more', 'welcome'];
+export const SCREENS = ['closet', 'garment', 'edit', 'outfits', 'outfit', 'build', 'calendar', 'week', 'stats', 'more', 'welcome'];
 
 export function parseRoute(hash) {
   const m = /^#\/([a-z]+)(?:\/([^/?#]*))?/.exec(hash || '');

@@ -11,12 +11,14 @@ import { closet } from './ui/screens/closet.js';
 import { garment } from './ui/screens/garment.js';
 import { garmentEdit } from './ui/screens/garment-edit.js';
 import { outfits } from './ui/screens/outfits.js';
+import { outfit } from './ui/screens/outfit.js';
+import { outfitEdit } from './ui/screens/outfit-edit.js';
 import { calendar } from './ui/screens/calendar.js';
 import { stats } from './ui/screens/stats.js';
 import { more } from './ui/screens/more.js';
 import { env } from './infra/platform.js';
 
-const SCREENS = { welcome, closet, garment, edit: garmentEdit, outfits, calendar, stats, more };
+const SCREENS = { welcome, closet, garment, edit: garmentEdit, outfits, outfit, build: outfitEdit, calendar, stats, more };
 const mount = document.getElementById('app');
 let state = null;
 let channel = null;
@@ -180,6 +182,9 @@ if (env.local) {
     pickPhoto: (file) => (state.shell.pickPhoto ? state.shell.pickPhoto(file) : Promise.reject(new Error('the add screen is not open'))),
     get editor() {
       return state && state.shell.editor;
+    },
+    get builder() {
+      return state && state.shell.builder;
     },
     async reboot(opts) {
       opts = opts || {};

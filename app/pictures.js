@@ -1,6 +1,10 @@
 /* aWardrobe app: stored pictures (JPEG colour plus greyscale PNG alpha) turned into drawable
    images, with two small caches so cards and pages redraw without decoding again
    (architecture section 4). */
+import { CANVAS_H } from '../domain/layout.js';
+import { pieceBox } from '../domain/image/geometry.js';
+import { toJpeg } from '../infra/image-pipeline.js';
+import { encodeGrayPng } from '../domain/image/png.js';
 
 const LIMITS = { thumb: 80, full: 4 };
 
@@ -94,11 +98,68 @@ export async function compositePicture(rec) {
   return c;
 }
 
+/* the canvas as a picture (FR-74): every piece drawn with the same numbers the stage uses, on a
+   transparent 900 by 1200 canvas, then colour as JPEG and alpha as PNG like a cut-out */
+export const OUTFIT_W = 900;
+export async function renderOutfitCanvas(pieces, imageOf, garmentOf) {
+  const W = OUTFIT_W;
+  const H = Math.round(W * CANVAS_H);
+  const c = document.createElement('canvas');
+  c.width = W;
+  c.height = H;
+  const ctx = c.getContext('2d', { willReadFrequently: true });
+  const skipped = [];
+  const sorted = pieces.slice().sort((a, b) => (a.z || 0) - (b.z || 0));
+  for (const p of sorted) {
+    const g = garmentOf(p.garmentId);
+    let img = null;
+    try {
+      img = g && g.pictures ? await imageOf(g.pictures.cutout, 'full') : null;
+    } catch (e) {
+      img = null;
+    }
+    if (!img) {
+      skipped.push(g ? g.name || g.type || p.garmentId : p.garmentId);
+      continue;
+    }
+    const aspect = img.height / img.width;
+    const box = pieceBox(p, W, aspect);
+    ctx.save();
+    ctx.translate(box.cx, box.cy);
+    ctx.rotate(((p.rot || 0) * Math.PI) / 180);
+    ctx.scale(p.flip ? -1 : 1, 1);
+    ctx.drawImage(img, -box.width / 2, -box.height / 2, box.width, box.height);
+    ctx.restore();
+  }
+  return { canvas: c, skipped };
+}
+
 export function createPictures(records) {
   const caches = { thumb: lru(LIMITS.thumb, freeCanvas), full: lru(LIMITS.full, freeCanvas) };
   const pending = new Map();
-  return {
+  const api = {
     record: (id) => (id ? records.db.get('pictures', id) : Promise.resolve(null)),
+    /* the outfit canvas as colour JPEG plus alpha PNG (FR-74); garments whose picture cannot be
+       read are left out and named */
+    async renderOutfit(pieces) {
+      const { canvas, skipped } = await renderOutfitCanvas(pieces, api.image, (id) => records.get('garments', id));
+      const W = canvas.width;
+      const H = canvas.height;
+      const d = canvas.getContext('2d').getImageData(0, 0, W, H).data;
+      const alpha = new Uint8Array(W * H);
+      const rgba = new Uint8ClampedArray(d.length);
+      for (let p = 0, i = 0; p < alpha.length; p++, i += 4) {
+        alpha[p] = d[i + 3];
+        rgba[i] = d[i];
+        rgba[i + 1] = d[i + 1];
+        rgba[i + 2] = d[i + 2];
+        rgba[i + 3] = 255;
+      }
+      freeCanvas(canvas);
+      const colour = await toJpeg(rgba, W, H, 0.86);
+      const alphaBlob = await encodeGrayPng(alpha, W, H);
+      return { colour, alpha: alphaBlob, width: W, height: H, skipped };
+    },
     /* a drawable canvas of a stored picture; `which` is 'thumb' for cards or 'full' for pages */
     image(id, which) {
       which = which === 'full' ? 'full' : 'thumb';
@@ -127,4 +188,5 @@ export function createPictures(records) {
       caches.full.clear();
     }
   };
+  return api;
 }
