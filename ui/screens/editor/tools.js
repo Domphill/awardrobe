@@ -26,7 +26,7 @@ const TOOL_HELP = {
   paint: 'Brush a colour onto the garment, keeping its shading or painting solid.',
   eraser: 'Brush away anything that should not be there.',
   restore: 'Brush back anything that was cut away.',
-  rotate: 'Turn the photo; the cut-out turns with it.',
+  rotate: 'Twist with two fingers, or use the slider; the cut-out turns with the photo.',
   crop: 'Drag the corners or the box, then apply.',
   dropper: 'Tap the photo to pick a colour, for the garment or for the brush.'
 };

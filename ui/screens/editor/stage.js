@@ -11,6 +11,8 @@ const DOUBLE_TAP_MS = 320;
 const TAP_SLOP = 8;
 const HANDLE_PX = 22;
 const DOUBLE_TAP_ZOOM = 3;
+/* a two-finger twist in the Rotate tool snaps to level and to right angles within this many degrees */
+const TWIST_SNAP = 4;
 
 export function createStage({ session, handlers }) {
   const view = h('canvas#stage-view', { 'aria-hidden': 'true' });
@@ -144,6 +146,13 @@ export function createStage({ session, handlers }) {
     ring.style.left = clientX - r.left + 'px';
     ring.style.top = clientY - r.top + 'px';
   };
+  /* a twisted angle wrapped to -180..180 and snapped to the nearest right angle when close */
+  const snapTwist = (deg) => {
+    deg = ((deg + 540) % 360) - 180;
+    const near = Math.round(deg / 90) * 90;
+    if (Math.abs(deg - near) <= TWIST_SNAP) deg = near === -180 ? 180 : near;
+    return Math.round(deg);
+  };
   const brushRadiusImage = () => viewport.brushImagePx(BRUSH_SIZES[session.state.options.size] || BRUSH_SIZES.medium) / 2;
 
   /* ---------- strokes, once per frame ---------- */
@@ -201,7 +210,7 @@ export function createStage({ session, handlers }) {
       /* a second finger: whatever was happening becomes a pinch */
       if (strokeActive) endStroke();
       const [a, b] = [...pointers.values()];
-      gesture = { kind: 'pinch', dist: Math.hypot(a.x - b.x, a.y - b.y), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
+      gesture = { kind: 'pinch', dist: Math.hypot(a.x - b.x, a.y - b.y), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }, angle: Math.atan2(b.y - a.y, b.x - a.x), startDeg: st.rotateDeg || 0, twisted: false };
       return;
     }
     if (pointers.size > 2) return;
@@ -249,6 +258,13 @@ export function createStage({ session, handlers }) {
       viewport.panBy(mid.x - gesture.mid.x, mid.y - gesture.mid.y);
       gesture.dist = dist;
       gesture.mid = mid;
+      /* in the Rotate tool the fingers also turn the photo, live (FR-40) */
+      if (st.tool === 'rotate') {
+        let turn = ((Math.atan2(b.y - a.y, b.x - a.x) - gesture.angle) * 180) / Math.PI;
+        turn = ((turn + 540) % 360) - 180;
+        st.rotateDeg = snapTwist(gesture.startDeg + turn);
+        gesture.twisted = true;
+      }
       draw();
       return;
     }
@@ -273,7 +289,11 @@ export function createStage({ session, handlers }) {
     pointers.delete(e.pointerId);
     if (!gesture) return;
     if (gesture.kind === 'pinch') {
-      if (pointers.size < 2) gesture = null;
+      if (pointers.size < 2) {
+        const twisted = gesture.twisted;
+        gesture = null;
+        if (twisted && handlers.rotateTo) handlers.rotateTo(st.rotateDeg);
+      }
       return;
     }
     const g = gesture;

@@ -252,6 +252,9 @@ function createLive({ app, router, shell }, key, existing) {
         (e) => toast((e && e.message) || 'That stroke did not work.')
       );
     },
+    /* a two-finger twist in the Rotate tool: the angle lands in the tool's own controls and is
+       applied when the tool is left, like the slider */
+    rotateTo: (deg) => tools.setOption('angle', deg),
     strokeMove: (points) => session.strokeMore(points).catch((e) => toast((e && e.message) || 'That stroke did not work.')),
     strokeEnd: () =>
       session.endStroke().then(
