@@ -12,6 +12,44 @@ export const colourDistance = (d, i, r, g, b) => {
    slider, 30, reaches about 20 levels a channel: a shade step, not a grey tee against a sheet. */
 export const toleranceThreshold = (t) => 4 + 2 * Math.min(100, Math.max(0, t));
 
+/* Closes gaps in the kept area narrower than about 2r pixels: a grow by r, then a shrink by r
+   (a morphological closing with a square window, done as two separable passes each way). It
+   fills the notches a striped garment gets along its outline where a stripe matches the sheet,
+   and the thin slits eaten into it, while a garment's own concave corners, far wider than 2r,
+   are left alone. Kept pixels are never lost. */
+export function closeGaps(mask, w, h, r) {
+  r = r || 3;
+  const n = w * h;
+  const a = new Uint8Array(n);
+  const b = new Uint8Array(n);
+  /* one direction of a grow (pick 255) or a shrink (pick 0): a pixel takes `pick` when a `pick`
+     pixel lies within r of it along the line, found with two linear scans of the distance */
+  const line = (src, so, step, len, dst, pick) => {
+    let dist = len;
+    for (let k = 0; k < len; k++) {
+      const i = so + k * step;
+      dist = src[i] === pick ? 0 : dist + 1;
+      dst[i] = dist <= r ? pick : src[i];
+    }
+    dist = len;
+    for (let k = len - 1; k >= 0; k--) {
+      const i = so + k * step;
+      dist = src[i] === pick ? 0 : dist + 1;
+      if (dist <= r) dst[i] = pick;
+    }
+  };
+  const pass = (src, dst, pick) => {
+    for (let y = 0; y < h; y++) line(src, y * w, 1, w, dst, pick);
+    for (let x = 0; x < w; x++) line(dst, x, w, h, dst, pick);
+  };
+  for (let i = 0; i < n; i++) a[i] = mask[i] > 127 ? 255 : 0;
+  pass(a, b, 255);
+  pass(b, a, 0);
+  /* the shrink must not reach the picture's border inwards: pixels that were kept stay kept */
+  for (let i = 0; i < n; i++) mask[i] = mask[i] > 127 || a[i] === 255 ? 255 : 0;
+  return mask;
+}
+
 /* Paints a round spot of `value` into the mask. Returns how many pixels changed. */
 export function paintDisc(mask, w, h, cx, cy, r, value) {
   const x0 = Math.max(0, Math.floor(cx - r));

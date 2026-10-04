@@ -3,7 +3,7 @@
    both in OKLab, then sorts every pixel between the two with the strength control leaning the
    decision. Shadows of the background are modelled as darker copies of its shades, so a cast
    shadow next to the garment counts as background. Pure maths; the worker runs it. */
-import { smooth, dropSpecks, fillHoles, coverage, growFrom, toleranceThreshold } from './mask.js';
+import { smooth, dropSpecks, fillHoles, closeGaps, coverage, growFrom, toleranceThreshold } from './mask.js';
 
 const LIN = new Float32Array(256);
 for (let i = 0; i < 256; i++) {
@@ -342,7 +342,10 @@ export function segment(img, opts) {
     for (const f of SHADOW_LEVELS) bgAll.push({ c: [c[0] * f, c[1] * (0.6 + 0.4 * f), c[2] * (0.6 + 0.4 * f)], penalty: SHADOW_PENALTY });
   }
   /* classify at a middle size, as a soft score, then bring it up to full size smoothly */
-  const cl = Math.max(img.width, img.height) > CLASSIFY_SIDE ? reduced(img, CLASSIFY_SIDE) : null;
+  /* every pixel is judged at full size: judging a reduced copy blurred fine stripes into a pale
+     mix that read as sheet, and a striped shirt vanished (the pinstripe shirt from the phone);
+     the notch-closing in tidy() then joins stripes the colour of the sheet to their neighbours */
+  const cl = CLASSIFY_FULL ? null : Math.max(img.width, img.height) > CLASSIFY_SIDE ? reduced(img, CLASSIFY_SIDE) : null;
   const cw = cl ? cl.w : img.width;
   const ch = cl ? cl.h : img.height;
   const clab = cl ? cl.lab : null;
@@ -409,7 +412,14 @@ function upsampleScore(score, sw, sh, mask, W, H) {
     }
   }
 }
+/* notches narrower than this many pixels (at the working size) are closed: a stripe or a seam
+   the colour of the sheet, not a real gap in a garment */
+export const CLOSE_GAP = 3;
+export const CLASSIFY_FULL = false;
 function tidy(mask, w, h) {
+  /* gaps first: fine stripes the colour of the sheet must be joined to their neighbours before the
+     smoothing and the speck drop, which would otherwise whittle thin stripes away to nothing */
+  closeGaps(mask, w, h, CLOSE_GAP);
   smooth(mask, w, h);
   smooth(mask, w, h);
   dropSpecks(mask, w, h, 0.003);
