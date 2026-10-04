@@ -440,8 +440,10 @@ function createLive({ app, router, shell }, key, existing) {
       h('div.actions.center', els.take, els.choose)
     );
     els.busy = h('div.stage-busy', { role: 'status', 'aria-live': 'polite', hidden: true }, h('div.spinner'), h('span'));
+    /* on the picture itself, so a phone shows the button and the picture at once (FR-47) */
+    els.showOriginal = btn('Hold to see original', () => {}, { icon: 'eye', id: 'show-original', small: true });
     els.stage = stage.el;
-    els.stage.append(els.stageEmpty, h('div.stage-tools', els.undo, els.redo), els.busy, els.fileCamera, els.fileLibrary);
+    els.stage.append(els.stageEmpty, h('div.stage-tools', els.undo, els.redo), h('div.stage-hold', els.showOriginal), els.busy, els.fileCamera, els.fileLibrary);
     root.appendChild(els.stage);
     els.warning = h('div.warning#edit-warning', { role: 'status', hidden: true });
     root.appendChild(els.warning);
@@ -454,7 +456,6 @@ function createLive({ app, router, shell }, key, existing) {
     root.appendChild(tools.bar);
     root.appendChild(tools.help);
     root.appendChild(tools.options);
-    els.showOriginal = btn('Hold to see original', () => {}, { icon: 'eye', id: 'show-original', small: true });
     const hold = (on) => () => stage.showOriginal(on);
     els.showOriginal.addEventListener('pointerdown', hold(true));
     for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) els.showOriginal.addEventListener(ev, hold(false));
@@ -476,7 +477,7 @@ function createLive({ app, router, shell }, key, existing) {
       form.colours = session.state.colours.slice(0, MAX_COLOURS);
       suggest();
       update();
-    }, { icon: 'refresh', id: 'colours-again', small: true }), els.showOriginal, els.bg));
+    }, { icon: 'refresh', id: 'colours-again', small: true }), els.bg));
     els.whole = h('input#whole-photo', { type: 'checkbox', onchange: () => {
       session.setWholePhoto(els.whole.checked);
       edited();

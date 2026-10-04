@@ -491,3 +491,15 @@ input[type='range'].tape:disabled {
 #show-original {
   touch-action: none;
 }
+.stage-hold {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 3;
+}
+.stage-hold .btn {
+  box-shadow: 0 4px 12px var(--shadow);
+}
+.stage-hold .btn[disabled] {
+  opacity: 0.5;
+}
