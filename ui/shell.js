@@ -124,7 +124,7 @@ export function createShell({ mount, app, router, screens }) {
         induced.testInduced = true;
         throw induced;
       }
-      screen.render(box, route.arg, { app, router, shell });
+      screen.render(box, route.arg, { app, router, shell, nav: opts.nav !== false });
     } catch (e) {
       shell.errored = true;
       if (!(e && e.testInduced)) console.error(e);

@@ -14,11 +14,16 @@ const EMPTY_TEXT = 'Photograph each piece against a plain background, like a bed
 
 export const closet = {
   name: 'closet',
-  render(root, arg, { app, router }) {
+  render(root, arg, { app, router, nav }) {
     const all = app.records.list('garments');
     const active = closetList(all);
     const gone = goneList(all);
     if (!active.length && !gone.length) view = freshView();
+    /* "See all" on Stats: the closet filtered to what has not been worn in 90 days, least worn first (FR-97) */
+    if (arg === 'notworn' && nav) {
+      view = Object.assign(freshView(), { sort: 'leastWorn' });
+      view.filters.notWorn90 = true;
+    }
     const goneLink = () => btn('Gone from closet (' + gone.length + ')', () => router.go('closet', 'gone'), { kind: 'ghost', id: 'closet-gone' });
     if (arg === 'gone') return renderGone(root, gone, { app, router });
     if (!active.length) {

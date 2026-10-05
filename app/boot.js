@@ -111,6 +111,7 @@ export async function createApp(opts) {
     version: VERSION,
     /* "now", which the tests can freeze */
     now: () => (frozen ? new Date(frozen.getTime()) : new Date()),
+    frozenNow: () => (frozen ? new Date(frozen.getTime()) : null),
     setNow(d) {
       frozen = d ? new Date(d) : null;
     },

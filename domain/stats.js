@@ -45,7 +45,14 @@ export function costPerWearRanking(garments, stats, n) {
       return { garment: g, wears: w, unworn: w === 0, value: costPerWear(priceOf(g), w) };
     })
     .sort((a, b) => a.value - b.value || (a.garment.name || '').localeCompare(b.garment.name || ''));
-  return { priced: priced.length, best: priced.slice(0, n || 3), worst: priced.slice().reverse().slice(0, n || 3) };
+  const best = priced.slice(0, n || 3);
+  const shown = new Set(best.map((x) => x.garment.id));
+  const worst = priced
+    .slice()
+    .reverse()
+    .filter((x) => !shown.has(x.garment.id))
+    .slice(0, n || 3);
+  return { priced: priced.length, best, worst };
 }
 
 /* the closet by category, most first */

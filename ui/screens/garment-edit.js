@@ -10,6 +10,7 @@ import { draftKey } from '../../app/drafts.js';
 import { suggestName, ValidationError } from '../../app/garments.js';
 import { createStage } from './editor/stage.js';
 import { createTools } from './editor/tools.js';
+import { askGone } from './gone.js';
 
 const WARN_PALE = 'This garment and its background look alike (pale on pale), so the cut-out may be rough. A darker background helps, or brush over the garment with Select and keep only that.';
 const WARN_WHOLE = 'The whole photo was kept, because the cut-out would have removed almost everything or almost nothing. You can try another strength or keep it as it is.';
@@ -484,7 +485,18 @@ function createLive({ app, router, shell }, key, existing) {
     } });
     els.different = btn(existing ? 'New photo' : 'Different photo', differentPhoto, { icon: 'image', id: 'photo-different', small: true });
     els.redoOriginal = existing && existing.pictures && existing.pictures.original ? btn('Redo the cut-out', redoFromOriginal, { icon: 'refresh', id: 'redo-original', small: true }) : null;
-    els.actions = h('div.edit-actions', h('label.check', els.whole, h('span', 'Keep the whole photo instead')), els.different, els.redoOriginal);
+    els.gone = existing && existing.status !== 'gone' ? btn('Gone from closet', async () => {
+      if (busyNow()) return;
+      if (session.state.work || touched) {
+        const sure = await confirmSheet({ title: 'Discard your changes?', body: 'Your unsaved changes will be lost. Save them first if you want to keep them.', confirm: 'Discard', cancel: 'Keep editing', danger: true });
+        if (!sure) return;
+      }
+      const ok = await askGone(app, existing);
+      if (!ok) return;
+      await discard();
+      router.back('closet');
+    }, { icon: 'upload', id: 'edit-gone', small: true }) : null;
+    els.actions = h('div.edit-actions', h('label.check', els.whole, h('span', 'Keep the whole photo instead')), els.different, els.redoOriginal, els.gone);
     root.appendChild(els.actions);
     /* colours and the guess */
     els.colours = h('div.colour-chips#edit-colours');

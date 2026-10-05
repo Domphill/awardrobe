@@ -13,7 +13,7 @@ import { garmentEdit } from './ui/screens/garment-edit.js';
 import { outfits } from './ui/screens/outfits.js';
 import { outfit } from './ui/screens/outfit.js';
 import { outfitEdit } from './ui/screens/outfit-edit.js';
-import { calendar } from './ui/screens/calendar.js';
+import { calendar, askPassedPlans } from './ui/screens/calendar.js';
 import { stats } from './ui/screens/stats.js';
 import { more } from './ui/screens/more.js';
 import { env } from './infra/platform.js';
@@ -68,8 +68,19 @@ async function boot(opts) {
   }
   state = { app, router, shell };
   router.start();
+  askPlans();
   registerWorker(shell);
   return state;
+}
+
+/* a planned day that has gone by is asked about once, after boot and whenever the app comes back (FR-81) */
+function askPlans() {
+  const st = state;
+  if (!st || !st.app.prefs.get().onboarded) return;
+  setTimeout(() => {
+    if (state !== st || st.shell.errored) return;
+    askPassedPlans(st.app, st.router).catch(() => {});
+  }, 250);
 }
 
 document.addEventListener('visibilitychange', () => {
@@ -82,6 +93,7 @@ document.addEventListener('visibilitychange', () => {
         if (!state || state.app !== app) return;
         applyTheme(app.prefs.get().theme);
         shell.refresh();
+        askPlans();
       })
       .catch(() => {});
   }
@@ -193,9 +205,12 @@ if (env.local) {
         await state.app.records.wipe();
         clearTheme();
       }
+      /* a frozen test clock survives a plain reboot, as the phone's clock would; a wipe starts afresh */
+      const keepNow = !opts.wipe && state && state.app.frozenNow ? state.app.frozenNow() : null;
       await teardown();
       history.replaceState(null, '', location.pathname + location.search + '#/closet');
       await boot(opts);
+      if (keepNow) state.app.setNow(keepNow);
       T.ready = true;
     },
     async seed(data) {
