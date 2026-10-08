@@ -946,3 +946,298 @@ input[type='range'].tape:disabled {
 .screen-stats section {
   margin-top: 18px;
 }
+
+/* ---------- the Today card (the home) ---------- */
+.today {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  margin: 4px 0 14px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+.today-wx {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.today-wx > .icon {
+  width: 34px;
+  height: 34px;
+  flex: none;
+}
+.today-wx b {
+  display: block;
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1.15;
+}
+.today-wx span {
+  display: block;
+  color: var(--graphite);
+  font-size: 13.5px;
+  margin-top: 2px;
+}
+.today-note {
+  margin: 0;
+  font-size: 13.5px;
+}
+.today-note .btn {
+  vertical-align: middle;
+}
+.idea-row {
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+  overflow-x: auto;
+  padding: 4px 2px;
+}
+.idea-piece {
+  display: block;
+  flex: none;
+}
+.idea-piece .thumb {
+  width: 56px;
+  height: 67px;
+}
+.outfit-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 2px;
+}
+.outfit-link {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  flex: none;
+  width: 96px;
+  padding: 6px 4px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--ink);
+  font-size: 12px;
+}
+.outfit-link .thumb {
+  width: 54px;
+  height: 72px;
+}
+.outfit-link-name {
+  max-width: 88px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.today .sub-head {
+  margin: 4px 0 0;
+}
+
+/* ---------- the forecast on the month ---------- */
+.cal-views {
+  margin: 6px 0 2px;
+}
+.cal-wx {
+  position: absolute;
+  right: 2px;
+  top: 2px;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  padding: 0 3px;
+  border-radius: 6px;
+  background: var(--card);
+  box-shadow: 0 0 0 1px var(--line);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 16px;
+}
+.cal-wx .icon {
+  width: 12px;
+  height: 12px;
+}
+.cal-day.has .cal-num {
+  z-index: 2;
+}
+
+/* ---------- This week ---------- */
+.week-list {
+  display: grid;
+  gap: 10px;
+  margin-top: 10px;
+}
+.week-day {
+  display: grid;
+  grid-template-columns: 56px 50px 1fr auto;
+  grid-template-areas: 'when wx body actions' 'when wx reason actions';
+  align-items: center;
+  gap: 4px 8px;
+  padding: 10px 10px 10px 8px;
+  border-radius: var(--radius);
+  border: 1px solid var(--line);
+  background: var(--card);
+}
+.week-day.today {
+  border-color: var(--tape);
+}
+.week-day.planned {
+  box-shadow: inset 4px 0 0 var(--tape);
+}
+.week-when {
+  grid-area: when;
+  display: grid;
+  gap: 2px;
+  padding: 2px 0;
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  font-size: 12.5px;
+}
+.week-when b {
+  font-size: 15px;
+}
+.week-when span {
+  color: var(--graphite);
+}
+.week-wx {
+  grid-area: wx;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  font-size: 12px;
+  color: var(--graphite);
+}
+.week-wx .icon {
+  width: 24px;
+  height: 24px;
+}
+.week-wx .week-high {
+  color: var(--ink);
+  font-size: 13px;
+}
+.week-plan,
+.week-idea {
+  grid-area: body;
+  min-width: 0;
+}
+.week-idea .idea-row,
+.week-plan .idea-row {
+  padding: 0;
+}
+.week-idea .idea-piece .thumb,
+.week-plan .idea-piece .thumb {
+  width: 44px;
+  height: 53px;
+}
+.week-reason,
+.week-state {
+  grid-area: reason;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--graphite);
+  min-width: 0;
+}
+.week-plan .week-state {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  color: var(--ink);
+  font-weight: 600;
+}
+.week-state .icon {
+  width: 14px;
+  height: 14px;
+}
+.week-none {
+  margin: 0;
+  font-size: 12.5px;
+}
+.week-actions {
+  grid-area: actions;
+  display: grid;
+  gap: 6px;
+  justify-items: stretch;
+}
+.week-actions .btn {
+  justify-content: center;
+}
+@media (max-width: 420px) {
+  .week-day {
+    grid-template-columns: 50px 44px 1fr;
+    grid-template-areas: 'when wx body' 'when wx reason' 'actions actions actions';
+  }
+  .week-actions {
+    grid-auto-flow: column;
+    justify-content: start;
+  }
+}
+
+/* ---------- the weather card on More ---------- */
+.search-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+.search-row .input {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.town-list {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+}
+.town-list:empty {
+  display: none;
+}
+.town-item {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  text-align: left;
+}
+
+.week-outfits {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+.week-outfits .label {
+  font-size: 12px;
+  color: var(--graphite);
+}
+.week-outfit {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 8px 3px 3px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+  font-size: 12.5px;
+}
+.week-outfit .thumb {
+  width: 22px;
+  height: 28px;
+}
+.week-actions {
+  grid-auto-flow: row;
+}
+@media (max-width: 420px) {
+  .week-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+}

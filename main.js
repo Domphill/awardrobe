@@ -13,14 +13,16 @@ import { garmentEdit } from './ui/screens/garment-edit.js';
 import { outfits } from './ui/screens/outfits.js';
 import { outfit } from './ui/screens/outfit.js';
 import { outfitEdit } from './ui/screens/outfit-edit.js';
-import { calendar, askPassedPlans } from './ui/screens/calendar.js';
+import { calendar, week, askPassedPlans } from './ui/screens/calendar.js';
+import { refreshTodayCard } from './ui/screens/home.js';
 import { stats } from './ui/screens/stats.js';
 import { more } from './ui/screens/more.js';
 import { env } from './infra/platform.js';
 
-const SCREENS = { welcome, closet, garment, edit: garmentEdit, outfits, outfit, build: outfitEdit, calendar, stats, more };
+const SCREENS = { welcome, closet, garment, edit: garmentEdit, outfits, outfit, build: outfitEdit, calendar, week, stats, more };
 const mount = document.getElementById('app');
 let state = null;
+let weatherMock = null;
 let channel = null;
 let wantReload = false;
 let lastReport = 0;
@@ -37,12 +39,13 @@ async function boot(opts) {
   showLoading();
   const app = await createApp({ forceNoStorage: !!opts.nostorage, breakLoad: !!opts.breakLoad, hangOpen: !!opts.hangOpen, openTimeout: opts.openTimeout });
   if (opts.onboarded) await app.prefs.set({ onboarded: true });
+  if (weatherMock) app.weather.useMock(weatherMock);
   applyTheme(app.prefs.get().theme);
   const router = createRouter((route, o) => shell.render(route, o));
   const shell = createShell({ mount, app, router, screens: SCREENS });
   if (app.memoryOnly) shell.showBanner('This browser won’t let aWardrobe save anything, so your things will be lost when you close it. Try Safari or Chrome, not a private window.');
   app.records.on((change) => {
-    if (change.store === 'meta' && change.id === 'errors') return;
+    if (change.store === 'meta' && (change.id === 'errors' || change.id === 'weather')) return;
     if (shell.errored) return;
     if (shell.current && shell.current !== 'welcome') shell.refresh();
   });
@@ -66,11 +69,28 @@ async function boot(opts) {
       if (channel) channel.postMessage({ type: 'changed', store: change.store, kind: change.kind });
     });
   }
+  /* a forecast landing (or failing) redraws only the screens that show it, and the Today card
+     in place, so a search being typed is never thrown away under the user's hands */
+  app.weather.on(() => {
+    if (!state || state.app !== app || shell.errored) return;
+    const cur = shell.current;
+    if (cur === 'closet') refreshTodayCard({ app, router });
+    else if (cur === 'calendar' || cur === 'week') shell.refresh();
+    else if (cur === 'more' && !document.getElementById('town-search')) shell.refresh();
+  });
   state = { app, router, shell };
   router.start();
   askPlans();
+  refreshWeather();
   registerWorker(shell);
   return state;
+}
+
+/* the forecast is fetched after boot and whenever the app comes back, if a town is set and the kept one is over three hours old (FR-87) */
+function refreshWeather() {
+  const st = state;
+  if (!st || !st.app.prefs.get().onboarded) return;
+  st.app.weather.refresh().catch(() => {});
 }
 
 /* a planned day that has gone by is asked about once, after boot and whenever the app comes back (FR-81) */
@@ -94,6 +114,7 @@ document.addEventListener('visibilitychange', () => {
         applyTheme(app.prefs.get().theme);
         shell.refresh();
         askPlans();
+        refreshWeather();
       })
       .catch(() => {});
   }
@@ -191,6 +212,18 @@ if (env.local) {
     failNextWrite: () => (state.app.records.failNext = true),
     abortNextTx: () => (state.app.records.abortNextTx = true),
     now: (iso) => state.app.setNow(iso ? new Date(iso) : null),
+    /* the weather stand-in: nothing in the tests touches the network */
+    weather: {
+      mock(spec) {
+        weatherMock = spec || null;
+        if (state) state.app.weather.useMock(weatherMock);
+      },
+      requests: () => (state ? state.app.weather.requests.slice() : []),
+      refresh: (opts) => state.app.weather.refresh(opts),
+      setPlace: (p) => state.app.weather.setPlace(p),
+      clearPlace: () => state.app.weather.clearPlace(),
+      state: () => state.app.weather.state()
+    },
     pickPhoto: (file) => (state.shell.pickPhoto ? state.shell.pickPhoto(file) : Promise.reject(new Error('the add screen is not open'))),
     get editor() {
       return state && state.shell.editor;

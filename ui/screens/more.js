@@ -1,17 +1,23 @@
 /* aWardrobe screen: More. Settings, privacy, storage, the error log, delete everything
-   (FR-106 to FR-108, FR-111, FR-112, FR-115). Backup and weather cards arrive in later milestones. */
-import { h, btn, card, sectionHead, segmented, field, pageHead, confirmSheet, toast } from '../components.js';
+   (FR-86, FR-106 to FR-108, FR-111, FR-112, FR-115). The backup card arrives with milestone 8. */
+import { h, btn, card, sectionHead, segmented, field, pageHead, confirmSheet, toast, clear } from '../components.js';
 import { applyTheme, clearTheme } from '../shell.js';
 import { versionNumber } from '../../app/version.js';
 import { relativeDay } from '../format.js';
+import { whenOf } from './home.js';
 import { todayKey } from '../../domain/model.js';
 
 const mb = (n) => (n >= 1e9 ? (n / 1e9).toFixed(1) + ' GB' : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + ' MB' : Math.round(n / 1e3) + ' KB');
 
 export const more = {
   name: 'more',
-  render(root, arg, { app, router, shell }) {
+  render(root, arg, { app, router, shell, nav }) {
     const prefs = app.prefs.get();
+    /* a half-finished change of town is forgotten on arrival; a redraw keeps it */
+    if (nav) {
+      changingTown = false;
+      townQuery = '';
+    }
     /* a setting that cannot be saved says so and shows the stored value again */
     const save = (patch) =>
       app.prefs.set(patch).catch((e) => {
@@ -36,6 +42,8 @@ export const more = {
       usage.textContent = u && u.quota ? 'aWardrobe is using about ' + mb(u.used) + ' of the ' + mb(u.quota) + ' this browser allows.' : u ? 'aWardrobe is using about ' + mb(u.used) + '.' : "Storage use isn't reported by this browser.";
     });
     root.appendChild(card(sectionHead('Storage'), usage, h('p.fineprint', env.ios && !env.standalone ? 'On an iPhone, Safari can clear a website’s saved data if it isn’t opened for a while. Adding aWardrobe to your Home Screen (Share, then Add to Home Screen) stops that.' : env.standalone ? 'aWardrobe is installed, so the browser keeps its data.' : 'Clearing this browser’s site data would erase your wardrobe. Add it to your home screen and take a backup now and then.')));
+
+    root.appendChild(weatherCard({ app, router, shell }, arg === 'weather'));
 
     root.appendChild(
       card(
@@ -98,3 +106,108 @@ export const more = {
     );
   }
 };
+
+/* ---------- the weather (FR-86 to FR-89, FR-95, FR-112) ---------- */
+
+let changingTown = false;
+let townQuery = '';
+const position = (p) => Number(p.latitude).toFixed(2) + ', ' + Number(p.longitude).toFixed(2);
+const plainError = (e) => {
+  const kind = e && e.kind;
+  if (kind === 'offline') return "You're offline. Try again when you have a connection.";
+  if (kind === 'timeout') return 'The weather service took too long to answer. Try again in a moment.';
+  if (kind === 'notAllowed') return 'That address is not allowed.';
+  return ((e && e.message) || 'The weather service did not answer.') + ' Try again later.';
+};
+
+function weatherCard({ app, shell }, focus) {
+  const w = app.weather.state();
+  const el = card(sectionHead('Weather'));
+  el.id = 'weather-card';
+  if (w.place && !changingTown) {
+    el.appendChild(h('p#weather-town', 'Weather set to ' + w.place.name + (w.place.region ? ', ' + w.place.region : '') + '.'));
+    const status = w.days.length ? 'Forecast from ' + whenOf(w.at, app) + (w.from === 'earlier' || w.error ? ' (from earlier' + (w.errorKind === 'offline' ? ", you're offline" : w.error ? ', the service did not answer just now' : '') + ')' : '') + '.' : w.error ? w.error + ' Ideas go by the season until the next try.' : w.fetching ? 'Fetching the forecast…' : 'No forecast fetched yet.';
+    el.appendChild(h('p.muted#weather-status', { role: 'status', 'aria-live': 'polite' }, status));
+    el.appendChild(h('p.fineprint#weather-privacy', "Only the town's map position (" + position(w.place) + ') is sent, to Open-Meteo, to fetch the forecast. Nothing else leaves the phone.'));
+    el.appendChild(
+      h(
+        'div.actions',
+        btn('Change town', () => {
+          changingTown = true;
+          shell.refresh();
+        }, { small: true, id: 'weather-change' }),
+        btn('Stop using the weather', async () => {
+          try {
+            await app.weather.clearPlace();
+            toast('Weather off. Ideas go by the season.');
+          } catch (e) {
+            toast("That couldn't be saved. " + ((e && e.message) || ''));
+          }
+        }, { small: true, kind: 'ghost', id: 'weather-stop' })
+      )
+    );
+    return el;
+  }
+  /* the search */
+  const input = h('input.input#town-search', { type: 'search', placeholder: 'Your town', 'aria-label': 'Your town', autocomplete: 'off', autocapitalize: 'words', enterkeyhint: 'search', value: townQuery, oninput: () => (townQuery = input.value) });
+  const results = h('div.town-list#town-results');
+  const status = h('p.muted#weather-status', { role: 'status', 'aria-live': 'polite', hidden: true });
+  const say = (msg, id) => {
+    clear(results);
+    status.hidden = !msg;
+    status.textContent = msg || '';
+    status.id = id || 'weather-status';
+  };
+  let searching = false;
+  const search = async () => {
+    const q = input.value.trim();
+    if (!q || searching) return;
+    searching = true;
+    say('Searching…');
+    try {
+      const found = await app.weather.search(q);
+      searching = false;
+      if (!found.length) {
+        say('No town by that name. Try the nearest bigger town, or check the spelling.', 'town-none');
+        return;
+      }
+      say('');
+      for (const [i, r] of found.entries()) {
+        results.appendChild(h('button.town-item', { type: 'button', dataset: { i: String(i) }, onclick: async () => {
+          try {
+            changingTown = false;
+            townQuery = '';
+            await app.weather.setPlace(r);
+            toast('Weather set to ' + r.name + '.');
+          } catch (e) {
+            toast("That couldn't be saved. " + ((e && e.message) || ''));
+          }
+        } }, h('b', r.name), h('span.muted', r.region ? ' ' + r.region : '')));
+      }
+    } catch (e) {
+      searching = false;
+      say(plainError(e));
+    }
+  };
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      search();
+    }
+  });
+  el.appendChild(h('p.muted', 'Set your town and the forecast shapes the ideas on the Closet and the calendar. Without one, ideas go by the season.'));
+  el.appendChild(h('div.search-row', input, btn('Search', search, { kind: 'primary', small: true, id: 'town-go' })));
+  el.appendChild(results);
+  el.appendChild(status);
+  el.appendChild(h('p.fineprint#weather-privacy', 'What you type here is sent to Open-Meteo to find the town. Once a town is chosen, only its map position goes with each forecast request. Nothing else ever leaves the phone.'));
+  if (w.place) el.appendChild(h('div.actions', btn('Cancel', () => {
+    changingTown = false;
+    townQuery = '';
+    shell.refresh();
+  }, { small: true, kind: 'ghost' })));
+  if (focus) setTimeout(() => {
+    el.scrollIntoView({ block: 'start' });
+    input.focus({ preventScroll: true });
+  }, 60);
+  return el;
+}

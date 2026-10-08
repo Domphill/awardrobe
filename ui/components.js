@@ -40,7 +40,7 @@ export function clear(el) {
 /* ---------- buttons ---------- */
 export function btn(label, onClick, opts) {
   opts = opts || {};
-  const el = h('button', { type: 'button', class: 'btn' + (opts.kind ? ' ' + opts.kind : '') + (opts.small ? ' small' : '') + (opts.block ? ' block' : ''), id: opts.id, disabled: !!opts.disabled, 'aria-label': opts.ariaLabel, onclick: onClick });
+  const el = h('button', { type: 'button', class: 'btn' + (opts.kind ? ' ' + opts.kind : '') + (opts.small ? ' small' : '') + (opts.block ? ' block' : '') + (opts.cls ? ' ' + opts.cls : ''), id: opts.id, disabled: !!opts.disabled, 'aria-label': opts.ariaLabel, onclick: onClick });
   if (opts.icon) el.appendChild(icon(opts.icon));
   el.appendChild(h('span', label));
   return el;

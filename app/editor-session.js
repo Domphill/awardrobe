@@ -81,6 +81,11 @@ export function createSession(app) {
     return m;
   };
   const effectiveWhole = () => (s.choice === null ? s.autoWhole : s.choice);
+  /* a mask with every pixel kept is a whole photo, however it got there */
+  const isFull = (m) => {
+    for (let i = 0; i < m.length; i++) if (m[i] !== 255) return false;
+    return true;
+  };
   const coverageOf = (m) => {
     let n = 0;
     for (let i = 0; i < m.length; i++) if (m[i] > 127) n++;
@@ -169,7 +174,7 @@ export function createSession(app) {
   async function openDocument() {
     const rgba = rgbaCopy();
     const mask = s.mask ? maskCopy() : fullMask();
-    const r = await worker.call('docOpen', { rgba, width: s.width, height: s.height, mask, strength: s.strength, lowContrast: s.lowContrast }, [rgba.buffer, mask.buffer]);
+    const r = await worker.call('docOpen', { rgba, width: s.width, height: s.height, mask, strength: s.strength, lowContrast: s.lowContrast, whole: !!s.wholePhoto }, [rgba.buffer, mask.buffer]);
     docOpen = true;
     s.sel = new Uint8Array(s.width * s.height);
     s.selection = 0;
@@ -258,6 +263,10 @@ export function createSession(app) {
       if (r.sel) selDirty = unionRect(selDirty, r.rect);
     }
     if (r.labels) s.labels = r.labels;
+    if (typeof r.whole === 'boolean') {
+      s.wholePhoto = r.whole;
+      s.choice = r.whole;
+    }
     if (typeof r.length === 'number') s.steps = r.length;
     if (typeof r.bytes === 'number') s.bytes = r.bytes;
     if (typeof r.coverage === 'number') s.coverage = r.coverage;
@@ -347,8 +356,12 @@ export function createSession(app) {
         let seeded = false;
         if (seed) {
           if (seed.wholePhoto) {
+            /* kept whole by choice: every pixel in, the tools edit from there; the cut-out comes back on request */
             s.choice = true;
             s.wholePhoto = true;
+            s.mask = fullMask();
+            s.coverage = 1;
+            rev.mask++;
             seeded = true;
           } else {
             const m = await seededMask(seed);
@@ -509,12 +522,20 @@ export function createSession(app) {
       emit();
     },
     /* keep the whole photo by choice (FR-50) */
-    setWholePhoto(on) {
-      s.choice = !!on;
-      s.wholePhoto = effectiveWhole();
-      s.dirty = true;
-      dropPreview();
-      emit();
+    async setWholePhoto(on) {
+      on = !!on;
+      if (!docOpen || s.status !== 'ready') {
+        s.choice = on;
+        s.wholePhoto = effectiveWhole();
+        s.dirty = true;
+        dropPreview();
+        emit();
+        return null;
+      }
+      /* a command in the document, so Undo takes it back like any other step */
+      const r = await heavy(on ? 'Keeping the whole photo…' : 'Cutting it out…', { type: 'whole', on });
+      if (r && !r.nothing) s.dirty = true;
+      return r;
     },
     async redetect() {
       if (s.status !== 'ready') return;
@@ -538,7 +559,7 @@ export function createSession(app) {
         const img = new ImageData(rw, rh);
         const d = img.data;
         const src = s.work.data;
-        const whole = s.wholePhoto || !s.mask;
+        const whole = !s.mask;
         for (let y = 0; y < rh; y++) {
           const row = (rect.y0 + y) * s.width + rect.x0;
           d.set(src.subarray(row * 4, (row + rw) * 4), y * rw * 4);
@@ -598,7 +619,7 @@ export function createSession(app) {
       if (stroke) await api.endStroke();
       const rgba = rgbaCopy();
       const original = s.originalId ? { keepId: s.originalId } : s.original;
-      if (s.wholePhoto || !s.mask) {
+      if (!s.mask || isFull(s.mask)) {
         const out = await worker.call('finalizePhoto', { rgba, width: s.width, height: s.height }, [rgba.buffer]);
         return { kind: 'photo', cutout: out.cutout, thumb: out.thumb, original, strength: s.strength, method: 'photo', shape: s.shape, colours: s.colours };
       }

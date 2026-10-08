@@ -47,20 +47,30 @@ function createLive({ app, router, shell }, key, existing) {
     return d ? Promise.resolve(d) : Promise.resolve(null);
   };
   const scheduleDraft = () => app.drafts.schedule(draftFields, dkey);
-  const offerDraft = async () => {
+  /* with `seed` (an idea handed over by the home or the week), a draft is still offered first:
+     "Carry on" keeps the draft and lets the idea go, "Start afresh with this idea" the reverse (NFR-28) */
+  const offerDraft = async (seed) => {
     if (offered) return;
     offered = true;
+    const seedIds = seed ? (seed.garmentIds || []).filter((gid) => app.records.get('garments', gid)) : [];
+    const placeSeed = () => {
+      if (seedIds.length && root && root.isConnected) run('addPieces', seedIds);
+    };
     await app.drafts.flush(dkey);
     const d = await app.drafts.get(dkey);
-    if (!d || (d.outfitId || null) !== (existing ? existing.id : null) || !root || !root.isConnected || session.state.dirty) return;
+    if (!d || (d.outfitId || null) !== (existing ? existing.id : null) || !root || !root.isConnected || session.state.dirty) {
+      if (seed) placeSeed();
+      return;
+    }
     const what = d.form && d.form.name ? '"' + d.form.name + '"' : existing ? 'this outfit' : 'the outfit you were building';
     const s = sheet({
       title: 'Carry on where you left off?',
-      body: h('p.muted', 'You were working on ' + what + '. Carry on with it, or start afresh and let it go.'),
+      body: h('p.muted', 'You were working on ' + what + '. ' + (seed ? 'Carry on with it and let this idea go, or start afresh with the idea and let the draft go.' : 'Carry on with it, or start afresh and let it go.')),
       actions: [
-        btn('Start afresh', async () => {
+        btn(seed ? 'Start afresh with this idea' : 'Start afresh', async () => {
           s.close();
           await app.drafts.clear(dkey);
+          if (seed) placeSeed();
         }, { kind: 'ghost' }),
         btn('Carry on', () => {
           s.close();
@@ -302,7 +312,12 @@ function createLive({ app, router, shell }, key, existing) {
     root.appendChild(btn('Save outfit', save, { kind: 'primary', block: true, id: 'build-save' }));
     fillForm();
     update();
-    if (!session.state.dirty) offerDraft();
+    const seed = !existing && app.builderSeed ? app.builderSeed : null;
+    if (seed) {
+      /* an idea handed over by the home or the week (FR-92); a draft, if there is one, is asked about first */
+      app.builderSeed = null;
+      offerDraft(seed);
+    } else if (!session.state.dirty) offerDraft();
   };
   const fillForm = () => {
     if (!els.name) return;

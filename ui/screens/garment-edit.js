@@ -238,6 +238,7 @@ function createLive({ app, router, shell }, key, existing) {
       if (r && !r.nothing) toast('Removed skin from about ' + Math.max(1, Math.round((r.removedShare || 0) * 100)) + '% of the cut-out.');
     } else if (action === 'cutAgain') r = say(await session.cutAgain());
     else if (action === 'wandTap') r = say(await session.wand(arg.x, arg.y));
+    else if (action === 'whole') r = say(await session.setWholePhoto(arg));
     if (r && !r.nothing) edited();
     else update();
     return r;
@@ -479,10 +480,7 @@ function createLive({ app, router, shell }, key, existing) {
       suggest();
       update();
     }, { icon: 'refresh', id: 'colours-again', small: true }), els.bg));
-    els.whole = h('input#whole-photo', { type: 'checkbox', onchange: () => {
-      session.setWholePhoto(els.whole.checked);
-      edited();
-    } });
+    els.whole = h('input#whole-photo', { type: 'checkbox', onchange: () => run('whole', els.whole.checked) });
     els.different = btn(existing ? 'New photo' : 'Different photo', differentPhoto, { icon: 'image', id: 'photo-different', small: true });
     els.redoOriginal = existing && existing.pictures && existing.pictures.original ? btn('Redo the cut-out', redoFromOriginal, { icon: 'refresh', id: 'redo-original', small: true }) : null;
     els.gone = existing && existing.status !== 'gone' ? btn('Gone from closet', async () => {

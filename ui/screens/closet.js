@@ -7,6 +7,7 @@ import { plural, fmtShortYear } from '../format.js';
 import { CATEGORIES, SEASONS, OCCASIONS, GONE_REASONS, category, parseDay } from '../../domain/model.js';
 import { COLOUR_NAMES } from '../../domain/colour/naming.js';
 import { sortGarments, categoryCounts, activeFilterCount, closetList, goneList, matchesQuery, passesFilters, EMPTY_FILTERS, SORTS } from '../../domain/search.js';
+import { todayCard } from './home.js';
 
 const freshView = () => ({ query: '', category: null, sort: 'newest', filters: Object.assign({}, EMPTY_FILTERS) });
 let view = freshView();
@@ -28,6 +29,11 @@ export const closet = {
     if (arg === 'gone') return renderGone(root, gone, { app, router });
     if (!active.length) {
       root.appendChild(pageHead('Closet', plural(0, 'piece')));
+      try {
+        root.appendChild(todayCard({ app, router }, { compact: true }));
+      } catch (e) {
+        app.errors.record({ screen: 'closet', message: 'Today card: ' + ((e && e.message) || e) });
+      }
       root.appendChild(empty('Your closet is empty', EMPTY_TEXT, btn('Add your first garment', () => router.go('edit', 'new'), { kind: 'primary', icon: 'camera', id: 'closet-first' })));
       if (gone.length) root.appendChild(h('div.actions.center', goneLink()));
       return;
@@ -37,6 +43,12 @@ export const closet = {
     const total = active.length;
     const sub = h('p.sub');
     root.appendChild(h('div.page-head', h('div', h('h1.title', 'Closet'), sub)));
+    /* the home: today's weather and an idea (FR-90); a fault in it never takes the Closet down */
+    try {
+      root.appendChild(todayCard({ app, router }));
+    } catch (e) {
+      app.errors.record({ screen: 'closet', message: 'Today card: ' + ((e && e.message) || e) });
+    }
 
     const search = h('input.input#closet-search', { type: 'search', placeholder: 'Search by name, brand or colour', value: view.query, 'aria-label': 'Search your closet', autocomplete: 'off', autocapitalize: 'off' });
     const clearSearch = iconBtn('x', 'Clear search', () => {

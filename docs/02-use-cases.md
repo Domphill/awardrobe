@@ -188,7 +188,7 @@ Phase 2 of 5. Draft 1, written 1 October 2026, approved 1 October 2026. Builds o
 
 **Alternative flows:**
 - **A1 No town.** At step 1, without a town the ideas go by the season, and the week view says so with a link to set a town. (FR-89)
-- **A2 Offline.** At step 1, offline with a forecast less than three hours old, the kept forecast is used; older than that, the season stands in and the view says so. (FR-87, FR-89)
+- **A2 Offline.** At step 1, offline with a forecast less than three hours old, the kept forecast is used; older than that, the season stands in and the view says so. (FR-87, FR-89) *(Amended 6 October 2026, milestone 7:)* offline, the kept forecast is used up to a day old and the view says it is from earlier; only after a day does the season stand in. A five-hour-old forecast is far better than the season in flight mode, and after a day the days it covers have moved on.
 - **A3 Beyond ten days.** Days without a forecast show no weather and season-based ideas. (FR-87)
 - **A4 Recently worn.** An idea avoids garments worn in the last two days unless nothing else fits. (FR-91)
 - **A5 Gone.** Gone garments never appear in ideas. (FR-15, FR-93)

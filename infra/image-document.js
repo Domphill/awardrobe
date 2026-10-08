@@ -34,7 +34,7 @@ export function createDocument() {
   const w = () => doc.width;
   const h = () => doc.height;
   const labels = () => doc.stack.labels();
-  const state = () => ({ labels: labels(), coverage: coverage(doc.mask), width: doc.width, height: doc.height, hasSelection: doc.selCount > 0, length: doc.stack.length, bytes: doc.stack.bytes, strength: doc.strength, extreme: doc.extreme || null, lowContrast: !!doc.lowContrast });
+  const state = () => ({ labels: labels(), coverage: coverage(doc.mask), width: doc.width, height: doc.height, hasSelection: doc.selCount > 0, length: doc.stack.length, bytes: doc.stack.bytes, strength: doc.strength, extreme: doc.extreme || null, lowContrast: !!doc.lowContrast, whole: !!doc.whole });
   const countSel = () => {
     let n = 0;
     const s = doc.sel;
@@ -103,11 +103,12 @@ export function createDocument() {
     doc.selCount = countSel();
   };
   /* a command whose record is the mask (and selection) before and after */
-  const flags = () => ({ strength: doc.strength, extreme: doc.extreme || null, lowContrast: !!doc.lowContrast });
+  const flags = () => ({ strength: doc.strength, extreme: doc.extreme || null, lowContrast: !!doc.lowContrast, whole: !!doc.whole });
   const setFlags = (f) => {
     doc.strength = f.strength;
     doc.extreme = f.extreme;
     doc.lowContrast = f.lowContrast;
+    doc.whole = !!f.whole;
   };
   const maskCommand = (label, change, opts) => {
     opts = opts || {};
@@ -388,9 +389,12 @@ export function createDocument() {
 
   /* ---------- the public handlers ---------- */
   const api = {
-    open({ rgba, width, height, mask, strength, lowContrast }) {
+    open({ rgba, width, height, mask, strength, lowContrast, whole }) {
       api.close();
       doc = { rgba: new Uint8ClampedArray(rgba.buffer ? rgba : new Uint8ClampedArray(rgba)), mask: mask ? new Uint8Array(mask) : new Uint8Array(width * height).fill(255), sel: new Uint8Array(width * height), selCount: 0, width, height, strength: strength === undefined ? 50 : strength, lowContrast: !!lowContrast, extreme: null, stack: createStack() };
+      /* whole-photo mode: every pixel kept, the tools edit from there (FR-50) */
+      doc.whole = !!whole;
+      doc.beforeWhole = null;
       return { result: state() };
     },
     close() {
@@ -408,6 +412,36 @@ export function createDocument() {
     async command(params) {
       if (!doc) throw new Error('No photo is open in the editor.');
       const t = params.type;
+      /* the picture changes shape: the cut-out kept for "back to the cut-out" no longer fits */
+      if (t === 'rotate' || t === 'mirror' || t === 'crop') doc.beforeWhole = null;
+      if (t === 'whole') {
+        const on = !!params.on;
+        if (on === !!doc.whole) return nothing(on ? 'The whole photo is already kept.' : 'The photo is already cut out.');
+        const snap = maskSnapshot();
+        if (on) {
+          const cmd = maskCommandFrom(snap, 'keep the whole photo');
+          doc.beforeWhole = new Uint8Array(doc.mask);
+          doc.mask.fill(255);
+          doc.whole = true;
+          doc.stack.apply(cmd);
+          return fullReply({});
+        }
+        const cmd = maskCommandFrom(snap, 'back to the cut-out');
+        let extra = {};
+        if (doc.beforeWhole && doc.beforeWhole.length === doc.mask.length) doc.mask = new Uint8Array(doc.beforeWhole);
+        else {
+          /* opened whole, or the picture changed shape since: cut out afresh at the strength */
+          const r = autoCutout(new ImageData(doc.rgba, w(), h()), { strength: doc.strength, keepWhole: false });
+          doc.mask = r.mask;
+          doc.extreme = r.extreme || null;
+          doc.lowContrast = !!r.lowContrast;
+          extra = { separation: r.separation, method: r.method, bg: r.bg };
+        }
+        doc.beforeWhole = null;
+        doc.whole = false;
+        doc.stack.apply(cmd);
+        return fullReply({}, extra);
+      }
       if (t === 'brush' || t === 'paint') {
         const stroke = startStroke(params);
         return strokeProgress(stroke, strokeApply(stroke, params.points || []));
@@ -485,6 +519,8 @@ export function createDocument() {
         doc.strength = strength;
         doc.extreme = r.extreme || null;
         doc.lowContrast = !!r.lowContrast;
+        doc.whole = false;
+        doc.beforeWhole = null;
         doc.stack.apply(cmd);
         return fullReply({}, { separation: r.separation, method: r.method, bg: r.bg });
       }

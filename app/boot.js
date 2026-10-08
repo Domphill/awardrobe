@@ -13,6 +13,8 @@ import { createDrafts } from './drafts.js';
 import { createGarments } from './garments.js';
 import { createOutfits } from './outfits.js';
 import { createDays } from './days.js';
+import { createWeather } from './weather.js';
+import { createIdeas } from './ideas.js';
 
 const MAX_ERRORS = 20;
 const OPEN_TIMEOUT = 8000;
@@ -28,6 +30,9 @@ export function createErrorLog(records) {
     /* Writes go one after another, so two errors in quick succession are both kept. */
     record(entry) {
       const e = Object.assign({ at: new Date().toISOString() }, entry);
+      /* the same fault reported again (a screen that fails on every redraw) is kept once */
+      const last = pending[0] || records.meta('errors', [])[0];
+      if (last && last.screen === e.screen && last.message === e.message) return chain;
       pending.unshift(e);
       const run = chain.then(async () => {
         try {
@@ -138,5 +143,7 @@ export async function createApp(opts) {
   app.garments = createGarments(app);
   app.days = createDays(app);
   app.outfits = createOutfits(app);
+  app.weather = createWeather(app);
+  app.ideas = createIdeas(app);
   return app;
 }
