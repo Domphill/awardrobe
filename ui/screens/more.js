@@ -1,13 +1,13 @@
 /* aWardrobe screen: More. Settings, privacy, storage, the error log, delete everything
-   (FR-86, FR-106 to FR-108, FR-111, FR-112, FR-115). The backup card arrives with milestone 8. */
+   (FR-86, FR-106 to FR-108, FR-111, FR-112, FR-115). The backup card is in backup.js. */
 import { h, btn, card, sectionHead, segmented, field, pageHead, confirmSheet, toast, clear } from '../components.js';
 import { applyTheme, clearTheme } from '../shell.js';
 import { versionNumber } from '../../app/version.js';
-import { relativeDay } from '../format.js';
+import { relativeDay, bytesText } from '../format.js';
 import { whenOf } from './home.js';
-import { todayKey } from '../../domain/model.js';
+import { todayKey, dayKey } from '../../domain/model.js';
+import { backupCard } from './backup.js';
 
-const mb = (n) => (n >= 1e9 ? (n / 1e9).toFixed(1) + ' GB' : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + ' MB' : Math.round(n / 1e3) + ' KB');
 
 export const more = {
   name: 'more',
@@ -26,22 +26,22 @@ export const more = {
       });
     root.appendChild(pageHead('More'));
 
-    const lastBackup = app.records.meta('lastBackup', null);
-    root.appendChild(
-      card(
-        sectionHead('Backup'),
-        h('p.muted', 'Everything is on this device only. A backup file holds all your garments, photos, outfits and calendar, and can be restored on another phone or after a reset.'),
-        h('p.muted#last-backup', lastBackup ? 'Last backup: ' + relativeDay(lastBackup.slice(0, 10), todayKey()) + '.' : 'No backup yet.'),
-        h('p.fineprint', 'Making and restoring backups comes in a later update.')
-      )
-    );
+    const backup = backupCard({ app, router, shell });
+    root.appendChild(backup);
+    if (arg === 'backup' && nav) setTimeout(() => backup.scrollIntoView({ block: 'start' }), 60);
 
     const env = app.env;
     const usage = h('p.muted#storage', 'Working out how much space your things use…');
+    const full = h('p.warning#storage-warning', { role: 'alert', hidden: true });
     app.storage.estimate().then((u) => {
-      usage.textContent = u && u.quota ? 'aWardrobe is using about ' + mb(u.used) + ' of the ' + mb(u.quota) + ' this browser allows.' : u ? 'aWardrobe is using about ' + mb(u.used) + '.' : "Storage use isn't reported by this browser.";
+      usage.textContent = u && u.quota ? 'aWardrobe is using about ' + bytesText(u.used) + ' of the ' + bytesText(u.quota) + ' this browser allows.' : u ? 'aWardrobe is using about ' + bytesText(u.used) + '.' : "Storage use isn't reported by this browser.";
+      /* above 80% the app warns and suggests a backup (NFR-17) */
+      if (u && u.quota && u.used / u.quota > 0.8) {
+        full.textContent = 'Storage is ' + Math.round((100 * u.used) / u.quota) + '% full. Take a backup and free some space, or new photos may not save.';
+        full.hidden = false;
+      } else full.remove();
     });
-    root.appendChild(card(sectionHead('Storage'), usage, h('p.fineprint', env.ios && !env.standalone ? 'On an iPhone, Safari can clear a website’s saved data if it isn’t opened for a while. Adding aWardrobe to your Home Screen (Share, then Add to Home Screen) stops that.' : env.standalone ? 'aWardrobe is installed, so the browser keeps its data.' : 'Clearing this browser’s site data would erase your wardrobe. Add it to your home screen and take a backup now and then.')));
+    root.appendChild(card(sectionHead('Storage'), usage, full, h('p.fineprint', env.ios && !env.standalone ? 'On an iPhone, Safari can clear a website’s saved data if it isn’t opened for a while. Adding aWardrobe to your Home Screen (Share, then Add to Home Screen) stops that.' : env.standalone ? 'aWardrobe is installed, so the browser keeps its data.' : 'Clearing this browser’s site data would erase your wardrobe. Add it to your home screen and take a backup now and then.')));
 
     root.appendChild(weatherCard({ app, router, shell }, arg === 'weather'));
 
@@ -77,7 +77,7 @@ export const more = {
       card(
         sectionHead('Report a problem'),
         errors.length
-          ? h('div#errors', h('p.muted', 'The last things that went wrong, newest first. Copy them to me if something keeps happening.'), h('ul.error-list', errors.map((e) => h('li', h('b', e.screen + ': '), e.message, h('span.fineprint', ' (' + relativeDay(e.at.slice(0, 10), todayKey()) + ')')))), btn('Clear this list', async () => {
+          ? h('div#errors', h('p.muted', 'The last things that went wrong, newest first. Copy them to me if something keeps happening.'), h('ul.error-list', errors.map((e) => h('li', h('b', e.screen + ': '), e.message, h('span.fineprint', ' (' + relativeDay(dayKey(new Date(e.at)), todayKey()) + ')')))), btn('Clear this list', async () => {
               await app.errors.clear();
               shell.refresh();
             }, { small: true, kind: 'ghost' }))

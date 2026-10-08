@@ -211,6 +211,12 @@ button {
   border: 1px solid var(--rule);
   font-size: 14px;
 }
+.notice-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+}
 .banner-warn {
   border-color: var(--tape);
   box-shadow: inset 4px 0 0 var(--tape);

@@ -244,12 +244,12 @@ Phase 2 of 5. Draft 1, written 1 October 2026, approved 1 October 2026. Builds o
 
 **Main flow, backup:**
 1. You open More and tap "Make a backup". The app shows progress while it packs the records and every picture. (FR-100)
-2. The phone's save or share sheet opens; you save the file (named with today's date) to Files, Drive, or wherever you keep it. (FR-100)
+2. The phone's save or share sheet opens; you save the file (named with today's date) to Files, Drive, or wherever you keep it. (FR-100) *(Amended 8 October 2026, milestone 8:)* on an iPhone the share sheet must open from a tap, so when packing a big closet took long enough for your tap to lapse, a "Your backup is ready" sheet asks for one more tap, Save, and the share sheet opens from that.
 3. More now shows "Last backup: today". (FR-106)
 
 **Main flow, restore:**
 4. On the new phone, after the welcome (UC-15), you open More and tap "Restore from a backup", then pick the file. (FR-101)
-5. If the Closet is empty, the app restores straight away; otherwise it asks "Add to mine" or "Replace everything" and, for replace, confirms. (FR-101)
+5. If the Closet is empty, the app restores straight away; otherwise it asks "Add to mine" or "Replace everything" and, for replace, confirms. (FR-101) *(Amended 8 October 2026, milestone 8:)* Replace everything brings the backup in first and only then removes what the backup does not hold, so a failure part-way loses nothing; a file that is cut short can only be added to; and when the device has less space free than the file needs, the app says so and asks before starting.
 6. The app shows progress, then reports how many garments, outfits and days came in and names anything it could not read. (FR-104)
 7. The Closet, Outfits, Calendar, Stats and settings (including the town) are as they were. (FR-101)
 

@@ -84,6 +84,18 @@ export function createShell({ mount, app, router, screens }) {
     if (document.getElementById('update-notice')) return;
     notices.appendChild(h('div.notice#update-notice', { role: 'status' }, h('span', 'A new version of aWardrobe is ready.'), btn('Reload', () => (onReload ? onReload() : location.reload()), { small: true, kind: 'primary' })));
   };
+  /* a notice with one action and a way to dismiss it, such as the backup reminder (FR-106) */
+  shell.showNotice = ({ id, text, button, onClick, onDismiss }) => {
+    if (document.getElementById(id)) return;
+    const el = h('div.notice#' + id, { role: 'status' }, h('span', text), h('span.notice-actions', btn(button, () => {
+      el.remove();
+      onClick();
+    }, { small: true, kind: 'primary' }), iconBtn('x', 'Dismiss', () => {
+      el.remove();
+      if (onDismiss) onDismiss();
+    }, { small: true })));
+    notices.appendChild(el);
+  };
   shell.showBanner = (text) => {
     notices.appendChild(h('div.banner.banner-warn', { role: 'alert' }, text));
   };

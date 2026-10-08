@@ -8,6 +8,7 @@ import { CATEGORIES, SEASONS, OCCASIONS, GONE_REASONS, category, parseDay } from
 import { COLOUR_NAMES } from '../../domain/colour/naming.js';
 import { sortGarments, categoryCounts, activeFilterCount, closetList, goneList, matchesQuery, passesFilters, EMPTY_FILTERS, SORTS } from '../../domain/search.js';
 import { todayCard } from './home.js';
+import { oldAppOffer } from './backup.js';
 
 const freshView = () => ({ query: '', category: null, sort: 'newest', filters: Object.assign({}, EMPTY_FILTERS) });
 let view = freshView();
@@ -15,7 +16,7 @@ const EMPTY_TEXT = 'Photograph each piece against a plain background, like a bed
 
 export const closet = {
   name: 'closet',
-  render(root, arg, { app, router, nav }) {
+  render(root, arg, { app, router, shell, nav }) {
     const all = app.records.list('garments');
     const active = closetList(all);
     const gone = goneList(all);
@@ -34,6 +35,8 @@ export const closet = {
       } catch (e) {
         app.errors.record({ screen: 'closet', message: 'Today card: ' + ((e && e.message) || e) });
       }
+      const offer = oldAppOffer({ app, router, shell });
+      if (offer) root.appendChild(offer);
       root.appendChild(empty('Your closet is empty', EMPTY_TEXT, btn('Add your first garment', () => router.go('edit', 'new'), { kind: 'primary', icon: 'camera', id: 'closet-first' })));
       if (gone.length) root.appendChild(h('div.actions.center', goneLink()));
       return;
@@ -49,6 +52,8 @@ export const closet = {
     } catch (e) {
       app.errors.record({ screen: 'closet', message: 'Today card: ' + ((e && e.message) || e) });
     }
+    const offer = oldAppOffer({ app, router, shell });
+    if (offer) root.appendChild(offer);
 
     const search = h('input.input#closet-search', { type: 'search', placeholder: 'Search by name, brand or colour', value: view.query, 'aria-label': 'Search your closet', autocomplete: 'off', autocapitalize: 'off' });
     const clearSearch = iconBtn('x', 'Clear search', () => {

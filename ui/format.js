@@ -44,3 +44,5 @@ export function temperature(celsius, unit = 'C') {
 }
 
 export const plural = (n, one, many) => n + ' ' + (n === 1 ? one : many || one + 's');
+/* a number of bytes in words a person reads: 1.4 MB, 12 MB, 2.1 GB, 850 KB */
+export const bytesText = (n) => (n >= 1e9 ? (n / 1e9).toFixed(1) + ' GB' : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + ' MB' : Math.round(n / 1e3) + ' KB');

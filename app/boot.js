@@ -15,6 +15,10 @@ import { createOutfits } from './outfits.js';
 import { createDays } from './days.js';
 import { createWeather } from './weather.js';
 import { createIdeas } from './ideas.js';
+import { createBackup } from './backup.js';
+import { createFiles } from '../infra/files.js';
+import { upgradeAll, CURRENT_VERSION } from '../domain/migrate.js';
+import { pictureIdsOf } from '../domain/backup-format.js';
 
 const MAX_ERRORS = 20;
 const OPEN_TIMEOUT = 8000;
@@ -145,5 +149,50 @@ export async function createApp(opts) {
   app.outfits = createOutfits(app);
   app.weather = createWeather(app);
   app.ideas = createIdeas(app);
+  app.files = createFiles();
+  app.backup = createBackup(app);
+  try {
+    await upgradeStored(app);
+  } catch (e) {
+    /* the records still work as they are; the upgrade is tried again next time */
+  }
   return app;
+}
+
+/* older records are brought up to the current version on open (NFR-29); when every record is
+   current only the version itself is written, and only when it is not there yet */
+export async function upgradeStored(app) {
+  const r = app.records;
+  const stamp = app.now().toISOString();
+  const garments = r.list('garments');
+  const outfits = r.list('outfits');
+  const days = r.list('days');
+  const needs = (list) => list.some((x) => (typeof x.v === 'number' ? x.v : 0) < CURRENT_VERSION);
+  if (!needs(garments) && !needs(outfits) && !needs(days)) {
+    if (r.meta('dataVersion', 0) < CURRENT_VERSION) await r.setMeta('dataVersion', CURRENT_VERSION);
+    return 0;
+  }
+  const up = upgradeAll({ garments, outfits, days }, stamp);
+  const changed = (store, before, after) => after.filter((rec, i) => rec !== before[i]).map((rec) => [store, rec]);
+  const writes = [...changed('garments', garments, up.garments), ...changed('outfits', outfits, up.outfits), ...changed('days', days, up.days)];
+  await r.tx(['garments', 'outfits', 'days', 'meta'], (ops) => {
+    for (const [store, rec] of writes) ops.put(store, rec);
+    ops.put('meta', { key: 'dataVersion', value: CURRENT_VERSION });
+  });
+  return writes.length;
+}
+
+/* pictures that belong to nothing are removed (NFR-27): after boot, in idle time, never while a
+   restore is marked as under way, and never from a memory-only session */
+export async function sweepOrphans(app) {
+  const r = app.records;
+  if (app.memoryOnly || r.meta('import', null)) return 0;
+  const keys = await r.db.getAllKeys('pictures');
+  const wanted = pictureIdsOf(r.list('garments'), r.list('outfits'));
+  for (const d of await r.db.getAll('drafts')) if (d && d.originalId) wanted.add(d.originalId);
+  const orphans = keys.filter((k) => !wanted.has(k));
+  if (!orphans.length) return 0;
+  await r.tx(['pictures'], (ops) => orphans.forEach((k) => ops.delete('pictures', k)));
+  for (const k of orphans) app.pictures.forget(k);
+  return orphans.length;
 }

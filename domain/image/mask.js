@@ -225,6 +225,11 @@ export function bbox(mask, w, h, threshold) {
   }
   return x1 < 0 ? null : { x0, y0, x1, y1 };
 }
+/* a picture with no see-through pixels is a photo kept whole; a rounding wobble is not transparency */
+export function pictureKind(alpha) {
+  for (let i = 0; i < alpha.length; i++) if (alpha[i] < 250) return 'cutout';
+  return 'photo';
+}
 export function coverage(mask) {
   let n = 0;
   for (let i = 0; i < mask.length; i++) if (mask[i] > 127) n++;

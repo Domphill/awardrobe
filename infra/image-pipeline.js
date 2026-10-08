@@ -4,6 +4,9 @@
 import { fitSize, resize, resizeWithAlpha } from '../domain/image/raster.js';
 import { finalCutout } from '../domain/image/edges.js';
 import { encodeGrayPng } from '../domain/image/png.js';
+import { decontaminate } from '../domain/image/edges.js';
+import { shapeFeatures } from '../domain/image/shape.js';
+import { pictureKind } from '../domain/image/mask.js';
 
 export const WORK_SIDE = 1200;
 export const ORIGINAL_SIDE = 2000;
@@ -115,4 +118,53 @@ export async function finalizePhoto(rgba, w, h) {
   const [tw, th] = fitSize(w, h, THUMB_SIDE);
   const tcolour = await toJpeg(resize(rgba, w, h, tw, th), tw, th, JPEG_THUMB);
   return { cutout: { colour, alpha: null, width: w, height: h, bytes: colour.size }, thumb: { colour: tcolour, alpha: null, width: tw, height: th, bytes: tcolour.size } };
+}
+
+/* An old Wardrobe picture (a PNG with transparency, or a JPEG kept whole) to aWardrobe's layers
+   at the working size: colour as JPEG and alpha as greyscale PNG, a thumbnail, and the shape
+   numbers for the type guess (FR-102). The rim is given the garment's own colour, as a fresh
+   cut-out's is, so no halo of the old background shows. */
+export async function convertOldPicture(blob) {
+  let bmp;
+  try {
+    bmp = await createImageBitmap(blob);
+  } catch (e) {
+    throw new ImageError('The photo could not be read.');
+  }
+  let c = null;
+  try {
+    const [w, h] = fitSize(bmp.width, bmp.height, WORK_SIDE);
+    if (!(w > 0 && h > 0)) throw new ImageError('The photo could not be read.');
+    c = makeCanvas(w, h);
+    const ctx = c.getContext('2d', { willReadFrequently: true });
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bmp, 0, 0, w, h);
+    const rgba = ctx.getImageData(0, 0, w, h).data;
+    const alpha = new Uint8Array(w * h);
+    for (let p = 0, i = 3; p < alpha.length; p++, i += 4) alpha[p] = rgba[i];
+    const kind = pictureKind(alpha);
+    if (kind === 'photo') {
+      const r = await finalizePhoto(rgba, w, h);
+      return { kind, cutout: r.cutout, thumb: r.thumb, shape: null, width: w, height: h };
+    }
+    decontaminate(rgba, alpha, w, h);
+    const final = { rgba, alpha, width: w, height: h };
+    const cutout = await encodeCutout(final);
+    const thumb = await makeThumbnail(final, THUMB_SIDE);
+    const mask = new Uint8Array(alpha.length);
+    for (let i = 0; i < mask.length; i++) mask[i] = alpha[i] >= 128 ? 255 : 0;
+    let shape = null;
+    try {
+      shape = shapeFeatures(mask, w, h);
+    } catch (e) {
+      shape = null;
+    }
+    return { kind, cutout, thumb, shape, width: w, height: h };
+  } finally {
+    if (bmp && bmp.close) bmp.close();
+    if (c) {
+      c.width = 0;
+      c.height = 0;
+    }
+  }
 }

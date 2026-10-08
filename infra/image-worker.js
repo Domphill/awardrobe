@@ -1,6 +1,7 @@
 /* aWardrobe infra: the image worker. Runs the pipeline off the main thread so the screen never
    freezes (NFR-7). Every request has an id; the reply carries the same id. */
-import { decodeFile, finalizeCutout, finalizePhoto } from './image-pipeline.js';
+import { decodeFile, finalizeCutout, finalizePhoto, convertOldPicture } from './image-pipeline.js';
+import { crcOfBlob } from '../domain/backup-format.js';
 import { autoCutout } from '../domain/image/segment.js';
 import { extractColours } from '../domain/colour/palette.js';
 import { shapeFeatures } from '../domain/image/shape.js';
@@ -31,6 +32,10 @@ const handlers = {
   finalizePhoto: async ({ rgba, width, height }) => ({ result: await finalizePhoto(rgba, width, height) }),
   colours: async ({ rgba, alpha, width, height, bg, count }) => ({ result: extractColours(rgba, alpha, width, height, { bg, count }) }),
   shape: async ({ mask, width, height }) => ({ result: shapeFeatures(mask, width, height) }),
+  /* the checksum a backup needs, read a slice at a time so a picture is never held whole (NFR-18) */
+  crc32: async ({ blob }) => ({ result: await crcOfBlob(blob) }),
+  /* an old Wardrobe picture to a cut-out or a photo, with its thumbnail and shape (FR-102) */
+  convertOld: async ({ blob }) => ({ result: await convertOldPicture(blob) }),
   docOpen: serial((p) => document.open(p)),
   docClose: serial(() => document.close()),
   docState: serial(() => document.state()),

@@ -1,7 +1,7 @@
 /* aWardrobe: boot. The order is fail-soft: theme, a loading screen, the database (memory-only if
    it fails or stalls), records, the shell and screen, the service worker. Test hooks exist only
    on localhost. */
-import { createApp } from './app/boot.js';
+import { createApp, sweepOrphans } from './app/boot.js';
 import { createRouter } from './ui/router.js';
 import { createShell, applyTheme, clearTheme, savedTheme } from './ui/shell.js';
 import { h, clear, toast } from './ui/components.js';
@@ -18,11 +18,14 @@ import { refreshTodayCard } from './ui/screens/home.js';
 import { stats } from './ui/screens/stats.js';
 import { more } from './ui/screens/more.js';
 import { env } from './infra/platform.js';
+import { plural } from './ui/format.js';
 
 const SCREENS = { welcome, closet, garment, edit: garmentEdit, outfits, outfit, build: outfitEdit, calendar, week, stats, more };
 const mount = document.getElementById('app');
 let state = null;
 let weatherMock = null;
+let filesMock = null;
+let storageMock = null;
 let channel = null;
 let wantReload = false;
 let lastReport = 0;
@@ -40,6 +43,13 @@ async function boot(opts) {
   const app = await createApp({ forceNoStorage: !!opts.nostorage, breakLoad: !!opts.breakLoad, hangOpen: !!opts.hangOpen, openTimeout: opts.openTimeout });
   if (opts.onboarded) await app.prefs.set({ onboarded: true });
   if (weatherMock) app.weather.useMock(weatherMock);
+  app.files.useMock(filesMock);
+  if (env.local) {
+    const realEstimate = app.storage.estimate;
+    app.storage = Object.assign({}, app.storage, { estimate: () => (storageMock ? Promise.resolve(Object.assign({}, storageMock)) : realEstimate()) });
+  }
+  /* the old Wardrobe's data on this device is looked for before the first screen, so the offer is there from the start (FR-103) */
+  await app.backup.checkOldApp();
   applyTheme(app.prefs.get().theme);
   const router = createRouter((route, o) => shell.render(route, o));
   const shell = createShell({ mount, app, router, screens: SCREENS });
@@ -82,6 +92,12 @@ async function boot(opts) {
   router.start();
   askPlans();
   refreshWeather();
+  remindBackup();
+  noticeInterrupted();
+  /* pictures nothing points at go in idle time (NFR-27) */
+  setTimeout(() => {
+    if (state && state.app === app) sweepOrphans(app).catch(() => {});
+  }, 3000);
   registerWorker(shell);
   return state;
 }
@@ -91,6 +107,26 @@ function refreshWeather() {
   const st = state;
   if (!st || !st.app.prefs.get().onboarded) return;
   st.app.weather.refresh().catch(() => {});
+}
+
+/* after 30 days without a backup, a reminder once per open (FR-106) */
+function remindBackup() {
+  const st = state;
+  if (!st || !st.app.prefs.get().onboarded) return;
+  const due = st.app.backup.due();
+  if (!due.due) return;
+  st.shell.showNotice({ id: 'backup-notice', text: due.ever ? "It's been " + plural(due.days, 'day') + ' since your last backup.' : 'Your clothes have never been backed up.', button: 'Back up now', onClick: () => st.router.go('more', 'backup') });
+}
+
+/* a restore cut off by the app closing is reported at the next open (NFR-27) */
+function noticeInterrupted() {
+  const st = state;
+  if (!st || !st.app.records.meta('import', null)) return;
+  const clear = () => st.app.records.deleteMeta('import').catch(() => {});
+  st.shell.showNotice({ id: 'restore-notice', text: 'A restore did not finish last time, so some things may be missing. Restore the file again with "Add to mine" to bring in the rest.', button: 'Restore again', onClick: () => {
+    clear();
+    st.router.go('more', 'backup');
+  }, onDismiss: clear });
 }
 
 /* a planned day that has gone by is asked about once, after boot and whenever the app comes back (FR-81) */
@@ -210,6 +246,7 @@ if (env.local) {
     throwOn: (name) => (state.shell.throwOnce = name),
     throwAlways: (name) => (state.shell.throwAlways = name),
     failNextWrite: () => (state.app.records.failNext = true),
+    failWriteNumber: (n) => (state.app.records.failAt = n),
     abortNextTx: () => (state.app.records.abortNextTx = true),
     now: (iso) => state.app.setNow(iso ? new Date(iso) : null),
     /* the weather stand-in: nothing in the tests touches the network */
@@ -223,6 +260,22 @@ if (env.local) {
       setPlace: (p) => state.app.weather.setPlace(p),
       clearPlace: () => state.app.weather.clearPlace(),
       state: () => state.app.weather.state()
+    },
+    /* the save sheet and the file chooser stand-ins: saves are captured, picks supplied */
+    files: {
+      mock(spec) {
+        filesMock = spec || null;
+        if (state) state.app.files.useMock(filesMock);
+      },
+      saved: () => (filesMock && filesMock.saved) || []
+    },
+    storage: {
+      mockEstimate(e) {
+        storageMock = e || null;
+      }
+    },
+    get backup() {
+      return state && state.app.backup;
     },
     pickPhoto: (file) => (state.shell.pickPhoto ? state.shell.pickPhoto(file) : Promise.reject(new Error('the add screen is not open'))),
     get editor() {

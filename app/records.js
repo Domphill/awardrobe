@@ -12,7 +12,14 @@ export function createRecords(db) {
   for (const s of RECORD_STORES) maps[s] = new Map();
   const meta = new Map();
   const listeners = new Set();
+  let muted = 0;
+  let held = false;
   const emit = (change) => {
+    /* while a long job runs, listeners hear once at the end instead of once per write */
+    if (muted) {
+      held = true;
+      return;
+    }
     for (const fn of listeners) {
       try {
         fn(change);
@@ -37,17 +44,19 @@ export function createRecords(db) {
     for (const m of await db.getAll('meta')) next.set(m.key, m.value);
     return next;
   };
-  /* a test hook: the next write is refused, so the error path can be checked */
+  /* test hooks: the next write is refused, or the n-th one from now, so the error paths can be checked */
   const guard = () => {
     if (api.failNext) {
       api.failNext = false;
       throw new StorageError("Saving failed: the write was refused.", 'write');
     }
+    if (api.failAt > 0 && --api.failAt === 0) throw new StorageError("Saving failed: the write was refused.", 'write');
   };
 
   const api = {
     db,
     failNext: false,
+    failAt: 0,
     abortNextTx: false,
     /* Reads everything first, then swaps it in, so a failed read leaves memory as it was. */
     async load() {
@@ -120,6 +129,26 @@ export function createRecords(db) {
       await db.put('meta', { key, value: v });
       meta.set(key, v);
       emit({ store: 'meta', id: key, kind: 'put' });
+    },
+    async deleteMeta(key) {
+      guard();
+      await db.delete('meta', key);
+      meta.delete(key);
+      emit({ store: 'meta', id: key, kind: 'remove' });
+    },
+    /* runs `fn` with change announcements held back, then announces once (a restore writes
+       hundreds of times, and every screen would redraw for each) */
+    async quiet(fn) {
+      muted++;
+      try {
+        return await fn();
+      } finally {
+        muted--;
+        if (!muted && held) {
+          held = false;
+          emit({ store: 'all', id: null, kind: 'batch' });
+        }
+      }
     },
     on(fn) {
       listeners.add(fn);

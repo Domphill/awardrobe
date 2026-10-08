@@ -449,7 +449,7 @@ function createLive({ app, router, shell }, key, existing) {
     root.appendChild(els.stage);
     els.warning = h('div.warning#edit-warning', { role: 'status', hidden: true });
     root.appendChild(els.warning);
-    if (existing && existing.pictures && !existing.pictures.original) root.appendChild(h('p.fineprint#edit-original-note', 'This garment came over without its reduced original, so a fresh cut-out needs a new photo.'));
+    if (existing && existing.pictures && !existing.pictures.original) root.appendChild(h('p.fineprint#edit-original-note', 'This garment came over without its original photo, so a fresh cut-out needs a new photo.'));
     /* the strength tape */
     els.strength = h('input.tape#strength', { type: 'range', min: '0', max: '100', step: '1', value: String(session.state.strength), 'aria-label': 'Cut-out strength, from keep more to remove more', oninput: () => (els.strengthValue.textContent = els.strength.value), onchange: () => editorHandle.setStrength(els.strength.value) });
     els.strengthValue = h('b', String(session.state.strength));
