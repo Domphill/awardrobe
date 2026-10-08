@@ -72,7 +72,10 @@ export const calendar = {
         const count = rec ? (rec.outfits || []).length + (rec.garments || []).length : 0;
         const fc = app.weather.dayForecast(key);
         const cell = h('button.cal-day', { type: 'button', dataset: { day: key }, 'aria-label': fmtLong(d) + (count ? ', ' + plural(count, 'thing') + (rec.planned && !rec.planAsked ? ' planned' : ' worn') : '') + (fc ? ', ' + (WX_TITLE[fc.kind] || 'cloudy').toLowerCase() + ' ' + temperature(fc.high, prefs.tempUnit) : ''), onclick: () => openDaySheet(ctx, key) }, h('span.cal-num', String(d.getDate())));
-        if (key === today) cell.classList.add('today');
+        if (key === today) {
+          cell.classList.add('is-today');
+          cell.setAttribute('aria-label', cell.getAttribute('aria-label') + ', today');
+        }
         if (rec && rec.planned && !rec.planAsked && count) cell.classList.add('planned');
         if (count) {
           cell.classList.add('has');
@@ -220,7 +223,7 @@ function weekRow(ctx, i) {
   const rec = app.days.get(key);
   const fc = app.weather.dayForecast(key);
   const row = h('div.week-day', { dataset: { day: key } });
-  if (key === today) row.classList.add('today');
+  if (key === today) row.classList.add('is-today');
   const when = (i === 0 ? 'Today' : fmtWeekdayShort(d)) + ' ' + fmtShort(d);
   row.appendChild(h('button.week-when', { type: 'button', 'aria-label': when + ', choose my own', onclick: () => openDaySheet(ctx, key) }, h('b', i === 0 ? 'Today' : fmtWeekdayShort(d)), h('span', fmtShort(d))));
   if (fc) {

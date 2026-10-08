@@ -2,7 +2,7 @@
    (FR-86, FR-106 to FR-108, FR-111, FR-112, FR-115). The backup card is in backup.js. */
 import { h, btn, card, sectionHead, segmented, field, pageHead, confirmSheet, toast, clear } from '../components.js';
 import { applyTheme, clearTheme } from '../shell.js';
-import { versionNumber } from '../../app/version.js';
+import { versionText } from '../../app/version.js';
 import { relativeDay, bytesText } from '../format.js';
 import { whenOf } from './home.js';
 import { todayKey, dayKey } from '../../domain/model.js';
@@ -68,7 +68,7 @@ export const more = {
       card(
         sectionHead('Privacy'),
         h('p.muted#privacy', 'Everything in aWardrobe stays on this device: your garments, photos, outfits, calendar and settings. Nothing is sent anywhere. The one exception is optional: if you add a town for the weather, that town’s map position is sent to Open-Meteo, a free weather service, to fetch the forecast, and nothing else.'),
-        h('p.fineprint#version', 'Version ' + versionNumber() + '.')
+        h('p.fineprint#version', 'Version ' + versionText() + '.')
       )
     );
 

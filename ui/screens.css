@@ -13,13 +13,13 @@
 .welcome-title {
   font-variation-settings: 'opsz' 96;
   font-weight: 700;
-  font-size: 40px;
+  font-size: 2.5rem;
   letter-spacing: -0.02em;
   line-height: 1;
 }
 .welcome-lead {
   max-width: 34ch;
-  font-size: 17px;
+  font-size: 1.0625rem;
   color: var(--graphite);
   text-wrap: balance;
 }
@@ -116,7 +116,7 @@
   padding: 6px 12px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--rule);
-  font-size: 14px;
+  font-size: 0.875rem;
   color: var(--graphite);
 }
 .stat-row {
@@ -130,13 +130,13 @@
 .stat-value {
   font-variation-settings: 'opsz' 96;
   font-weight: 700;
-  font-size: 30px;
+  font-size: 1.875rem;
   letter-spacing: -0.02em;
   line-height: 1.05;
 }
 .stat-label {
   color: var(--graphite);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 
 /* ---------- add and edit a garment ---------- */
@@ -186,7 +186,7 @@
   display: none;
 }
 .stage-empty.over p {
-  font-size: 13.5px;
+  font-size: 0.84375rem;
 }
 /* a phone on its side: the stage leaves room for the tape and the tools */
 @media (orientation: landscape) and (max-height: 520px) {
@@ -200,7 +200,7 @@
 .stage-empty p {
   color: var(--graphite);
   max-width: 32ch;
-  font-size: 14.5px;
+  font-size: 0.90625rem;
 }
 .stage-empty .icon {
   width: 34px;
@@ -229,16 +229,19 @@
   box-shadow: inset 4px 0 0 var(--tape);
   background: var(--raise);
   padding: 10px 14px;
-  font-size: 14.5px;
+  font-size: 0.90625rem;
 }
 .tape-wrap {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 6px;
 }
 .tape-labels {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
-  font-size: 14px;
+  gap: 2px 12px;
+  font-size: 0.875rem;
   color: var(--graphite);
 }
 .tape-labels b {
@@ -287,6 +290,17 @@ input[type='range'].tape:disabled {
   gap: 6px;
   padding-bottom: 4px;
 }
+/* at a large text size the tool labels need wider cells, and at accessibility sizes two columns */
+html[data-text] .tools {
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+}
+html[data-text='xl'] .tools {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.tool > span {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
 .tools::-webkit-scrollbar {
   display: none;
 }
@@ -295,20 +309,20 @@ input[type='range'].tape:disabled {
   display: grid;
   justify-items: center;
   gap: 4px;
-  min-width: 64px;
+  min-width: 0;
   min-height: 60px;
   padding: 8px 6px;
   border-radius: var(--radius-sm);
   border: 1px solid transparent;
   background: none;
   color: var(--graphite);
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   font-weight: 600;
 }
 .tool[aria-checked='true'] {
   background: var(--tape);
   color: var(--tape-ink);
-  border-color: var(--tape);
+  border-color: var(--tape-ink);
 }
 .tool:disabled {
   opacity: 0.4;
@@ -316,7 +330,7 @@ input[type='range'].tape:disabled {
 }
 .guess {
   color: var(--graphite);
-  font-size: 14.5px;
+  font-size: 0.90625rem;
 }
 .edit-actions {
   display: flex;
@@ -333,6 +347,10 @@ input[type='range'].tape:disabled {
 }
 .form-grid .field {
   min-width: 0;
+}
+/* at a large text size every field has the whole width */
+html[data-text] .form-grid {
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .stage-tools {
@@ -353,7 +371,7 @@ input[type='range'].tape:disabled {
   display: flex;
   justify-content: space-between;
   padding: 0 2px;
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 600;
   color: var(--graphite);
   margin-bottom: -2px;
@@ -361,7 +379,7 @@ input[type='range'].tape:disabled {
 .tool-note {
   align-self: center;
   color: var(--graphite);
-  font-size: 13.5px;
+  font-size: 0.84375rem;
   line-height: 1.3;
   padding: 0 4px;
   white-space: normal;
@@ -405,7 +423,7 @@ input[type='range'].tape:disabled {
   background: var(--raise);
   color: var(--ink);
   font-weight: 700;
-  font-size: 13px;
+  font-size: 0.8125rem;
   box-shadow: 0 4px 12px var(--shadow);
   z-index: 3;
 }
@@ -577,7 +595,7 @@ input[type='range'].tape:disabled {
   border-radius: 999px;
   background: var(--ink);
   color: var(--paper);
-  font-size: 12px;
+  font-size: 0.75rem;
   font-weight: 700;
   pointer-events: none;
 }
@@ -592,7 +610,7 @@ input[type='range'].tape:disabled {
   gap: 8px;
 }
 .piece-tools.dim {
-  opacity: 0.5;
+  opacity: 0.8;
 }
 .piece-tools .angle {
   width: 72px;
@@ -614,8 +632,8 @@ input[type='range'].tape:disabled {
   gap: 10px;
 }
 .slot {
-  background: var(--card);
-  border: 1px solid var(--line);
+  background: var(--raise);
+  border: 1px solid var(--rule);
   border-radius: var(--radius);
   padding: 10px 12px;
   touch-action: pan-y;
@@ -648,12 +666,12 @@ input[type='range'].tape:disabled {
 }
 .slot-prev::before {
   content: '‹';
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 700;
 }
 .slot-next::after {
   content: '›';
-  font-size: 22px;
+  font-size: 1.375rem;
   font-weight: 700;
 }
 .slot-prev .thumb,
@@ -674,7 +692,7 @@ input[type='range'].tape:disabled {
 .slot-foot .slot-label {
   margin-left: auto;
   color: var(--graphite);
-  font-size: 13.5px;
+  font-size: 0.84375rem;
 }
 .pick-list {
   display: grid;
@@ -688,8 +706,8 @@ input[type='range'].tape:disabled {
   gap: 10px;
   padding: 6px 8px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
-  background: var(--card);
+  border: 1px solid var(--rule);
+  background: var(--raise);
   text-align: left;
   color: var(--ink);
 }
@@ -700,7 +718,7 @@ input[type='range'].tape:disabled {
 }
 .pick-item[aria-pressed='true'] {
   border-color: var(--tape);
-  background: var(--tape-soft, var(--soft));
+  background: var(--soft);
 }
 .pick-item:disabled {
   opacity: 0.5;
@@ -726,24 +744,26 @@ input[type='range'].tape:disabled {
 /* ---------- wear logging and gone ---------- */
 .problem {
   color: var(--danger, #b3261e);
-  font-size: 14px;
+  font-size: 0.875rem;
   margin: 0;
 }
 
 /* ---------- calendar ---------- */
 .cal-weekdays {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
   margin-top: 8px;
   color: var(--graphite);
-  font-size: 12px;
+  /* seven short names in a seventh of the screen each, whatever the text size */
+  font-size: min(0.75rem, 3.2vw);
   text-align: center;
+  overflow: hidden;
 }
 .cal-grid {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
   margin-top: 4px;
 }
 .cal-day,
@@ -753,14 +773,47 @@ input[type='range'].tape:disabled {
   border-radius: var(--radius-sm);
   overflow: hidden;
 }
+/* the forecast badge, the number and the picture stack, so a cell grows with the text (NFR-20) */
 .cal-day {
-  display: grid;
-  place-items: center;
-  border: 1px solid var(--line);
-  background: var(--card);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  min-height: var(--tap);
+  border: 1px solid var(--rule);
+  background: var(--raise);
   color: var(--ink);
-  padding: 0;
-  font-size: 14px;
+  padding: 2px 0;
+  /* the cell is as wide as a seventh of the screen whatever the text size, so what is in it is
+     measured against the cell (the week view carries the forecast at full size); the cell is the
+     container, so the caps go on its children */
+  container-type: inline-size;
+  font-size: 0.875rem;
+}
+.cal-day .cal-num {
+  font-size: min(0.875rem, 40cqw);
+}
+/* a cell with a picture keeps the badge at the top right, off the picture */
+.cal-day.has {
+  justify-content: flex-start;
+}
+.cal-day.has .cal-wx {
+  align-self: flex-end;
+  margin: 1px 2px 0 0;
+}
+/* beside the day's number there is room for the high but not the symbol */
+.cal-day.has .cal-wx .icon {
+  display: none;
+}
+/* at a large text size the cells are sized by what is in them and the rows grow with them (NFR-20) */
+html[data-text] .cal-day,
+html[data-text] .cal-blank {
+  aspect-ratio: auto;
+  min-height: 56px;
+}
+html[data-text] .cal-day.has {
+  min-height: 72px;
 }
 .cal-day.has {
   border-color: var(--rule);
@@ -781,27 +834,31 @@ input[type='range'].tape:disabled {
   position: absolute;
   top: 2px;
   left: 2px;
-  font-size: 12px;
+  font-size: min(0.75rem, 26cqw);
   font-weight: 700;
-  line-height: 18px;
+  line-height: 1.5;
   min-width: 18px;
   padding: 0 4px;
   border-radius: 6px;
   color: var(--ink);
-  background: var(--card);
-  box-shadow: 0 0 0 1px var(--line);
+  background: var(--raise);
+  box-shadow: 0 0 0 1px var(--rule);
 }
 .cal-day.has .thumb {
+  /* boxed inside the cell whatever the text size: a canvas left to size itself keeps its own shape and runs off the edge */
   inset: 14px 4px 4px;
-  width: auto;
-  height: auto;
+  width: calc(100% - 8px);
+  height: calc(100% - 18px);
   object-fit: contain;
 }
-.cal-day.today {
-  border: 2px solid var(--tape);
+.cal-day.is-today {
+  /* the ring sits inside the same box as every other cell, so today has the same room */
+  border-color: var(--tape);
+  box-shadow: inset 0 0 0 1px var(--tape);
 }
-.cal-day.today .cal-num {
-  color: var(--tape);
+.cal-day.is-today .cal-num {
+  color: var(--ink);
+  font-weight: 700;
 }
 .cal-day.planned {
   border-style: dashed;
@@ -819,7 +876,7 @@ input[type='range'].tape:disabled {
   border-radius: 9px;
   background: var(--ink);
   color: var(--paper, #fff);
-  font-size: 11px;
+  font-size: 0.6875rem;
   font-weight: 700;
   display: grid;
   place-items: center;
@@ -856,11 +913,11 @@ input[type='range'].tape:disabled {
 .stats-grid .stat {
   padding: 12px 14px;
   border-radius: var(--radius);
-  border: 1px solid var(--line);
-  background: var(--card);
+  border: 1px solid var(--rule);
+  background: var(--raise);
 }
 .sub-head {
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 700;
   color: var(--graphite);
   margin: 14px 0 6px;
@@ -875,8 +932,8 @@ input[type='range'].tape:disabled {
   gap: 10px;
   padding: 6px 8px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
-  background: var(--card);
+  border: 1px solid var(--rule);
+  background: var(--raise);
   text-align: left;
   color: var(--ink);
   width: 100%;
@@ -900,12 +957,12 @@ input[type='range'].tape:disabled {
 .rank-item > .muted {
   flex: none;
   white-space: nowrap;
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 .rank-count {
   flex: none;
   font-variation-settings: 'opsz' 96;
-  font-size: 18px;
+  font-size: 1.125rem;
 }
 .bar {
   display: block;
@@ -929,7 +986,7 @@ input[type='range'].tape:disabled {
   grid-template-columns: 7.5em 1fr 2.5em;
   align-items: center;
   gap: 8px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .bar-label {
   display: flex;
@@ -954,8 +1011,8 @@ input[type='range'].tape:disabled {
   padding: 12px 14px;
   margin: 4px 0 14px;
   border-radius: var(--radius);
-  border: 1px solid var(--line);
-  background: var(--card);
+  border: 1px solid var(--rule);
+  background: var(--raise);
 }
 .today-wx {
   display: flex;
@@ -969,19 +1026,19 @@ input[type='range'].tape:disabled {
 }
 .today-wx b {
   display: block;
-  font-size: 17px;
+  font-size: 1.0625rem;
   font-weight: 600;
   line-height: 1.15;
 }
 .today-wx span {
   display: block;
   color: var(--graphite);
-  font-size: 13.5px;
+  font-size: 0.84375rem;
   margin-top: 2px;
 }
 .today-note {
   margin: 0;
-  font-size: 13.5px;
+  font-size: 0.84375rem;
 }
 .today-note .btn {
   vertical-align: middle;
@@ -1014,11 +1071,11 @@ input[type='range'].tape:disabled {
   flex: none;
   width: 96px;
   padding: 6px 4px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--rule);
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--ink);
-  font-size: 12px;
+  font-size: 0.75rem;
 }
 .outfit-link .thumb {
   width: 54px;
@@ -1039,20 +1096,20 @@ input[type='range'].tape:disabled {
   margin: 6px 0 2px;
 }
 .cal-wx {
-  position: absolute;
-  right: 2px;
-  top: 2px;
+  position: relative;
+  order: -1;
+  max-width: 100%;
   z-index: 1;
   display: flex;
   align-items: center;
   gap: 1px;
   padding: 0 3px;
   border-radius: 6px;
-  background: var(--card);
-  box-shadow: 0 0 0 1px var(--line);
-  font-size: 10.5px;
+  background: var(--raise);
+  box-shadow: 0 0 0 1px var(--rule);
+  font-size: min(0.65625rem, 22cqw);
   font-weight: 700;
-  line-height: 16px;
+  line-height: 1.5;
 }
 .cal-wx .icon {
   width: 12px;
@@ -1076,10 +1133,10 @@ input[type='range'].tape:disabled {
   gap: 4px 8px;
   padding: 10px 10px 10px 8px;
   border-radius: var(--radius);
-  border: 1px solid var(--line);
-  background: var(--card);
+  border: 1px solid var(--rule);
+  background: var(--raise);
 }
-.week-day.today {
+.week-day.is-today {
   border-color: var(--tape);
 }
 .week-day.planned {
@@ -1093,10 +1150,10 @@ input[type='range'].tape:disabled {
   background: transparent;
   color: var(--ink);
   text-align: left;
-  font-size: 12.5px;
+  font-size: 0.78125rem;
 }
 .week-when b {
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 .week-when span {
   color: var(--graphite);
@@ -1106,7 +1163,7 @@ input[type='range'].tape:disabled {
   display: grid;
   justify-items: center;
   gap: 1px;
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--graphite);
 }
 .week-wx .icon {
@@ -1115,7 +1172,7 @@ input[type='range'].tape:disabled {
 }
 .week-wx .week-high {
   color: var(--ink);
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 .week-plan,
 .week-idea {
@@ -1134,7 +1191,7 @@ input[type='range'].tape:disabled {
 .week-reason,
 .week-state {
   grid-area: reason;
-  font-size: 12px;
+  font-size: 0.75rem;
   line-height: 1.3;
   color: var(--graphite);
   min-width: 0;
@@ -1153,7 +1210,7 @@ input[type='range'].tape:disabled {
 }
 .week-none {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 0.78125rem;
 }
 .week-actions {
   grid-area: actions;
@@ -1199,8 +1256,8 @@ input[type='range'].tape:disabled {
   align-items: baseline;
   padding: 8px 10px;
   border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
-  background: var(--card);
+  border: 1px solid var(--rule);
+  background: var(--raise);
   color: var(--ink);
   text-align: left;
 }
@@ -1213,19 +1270,20 @@ input[type='range'].tape:disabled {
   margin-top: 4px;
 }
 .week-outfits .label {
-  font-size: 12px;
+  font-size: 0.75rem;
   color: var(--graphite);
 }
 .week-outfit {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 8px 3px 3px;
+  min-height: var(--tap);
+  padding: 3px 10px 3px 4px;
   border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--card);
+  border: 1px solid var(--rule);
+  background: var(--raise);
   color: var(--ink);
-  font-size: 12.5px;
+  font-size: 0.78125rem;
 }
 .week-outfit .thumb {
   width: 22px;

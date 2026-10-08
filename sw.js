@@ -2,7 +2,8 @@
    opens without a connection. Bump VERSION on every release, or phones keep the old copy.
    Records and photos never pass through here: they live in the browser's own database.
    Only caches named awardrobe-* are touched, because other apps share this site. */
-const VERSION = 'awardrobe-v15';
+const RELEASE = '1.0'; /* the release name; not used here, kept beside VERSION so one file states both (C-5 reads it) */
+const VERSION = 'awardrobe-v16';
 const FILES = [
   './',
   'index.html',

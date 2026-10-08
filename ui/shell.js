@@ -44,6 +44,20 @@ export function createShell({ mount, app, router, screens }) {
   const main = h('main#main', { tabindex: '-1' });
   const tabs = h('nav.tabs', { 'aria-label': 'Main' });
   const notices = h('div#notices');
+  /* a probe one rem wide: when the phone's text size changes the root size, the probe changes
+     with it and the page is marked large or not (NFR-20) */
+  const probe = h('div#rem-probe', { 'aria-hidden': 'true' });
+  probe.style.cssText = 'position:absolute;top:0;left:0;width:1rem;height:0;visibility:hidden;pointer-events:none';
+  document.body.appendChild(probe);
+  const markTextSize = () => {
+    const rem = probe.getBoundingClientRect().width || 16;
+    /* large from 150% (wider cells, wrapping titles); xl from 175% (the tab bar's labels give way) */
+    if (rem >= 28) document.documentElement.setAttribute('data-text', 'xl');
+    else if (rem >= 24) document.documentElement.setAttribute('data-text', 'large');
+    else document.documentElement.removeAttribute('data-text');
+  };
+  markTextSize();
+  if (typeof ResizeObserver === 'function') new ResizeObserver(markTextSize).observe(probe);
   const topbar = h('header.topbar', h('button.brand', { type: 'button', 'aria-label': 'aWardrobe home', onclick: () => router.go('closet') }, logo(28), h('span.brand-name', 'aWardrobe')), iconBtn('more', 'More', () => router.go('more'), { id: 'more-btn', cls: 'topbar-btn' }));
   const frame = h('div.shell', topbar, notices, main, tabs);
   mount.appendChild(frame);

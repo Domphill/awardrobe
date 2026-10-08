@@ -73,6 +73,7 @@ export function createBuilderStage({ session, app, onSelect, onNudge }) {
       }
       place(node, p);
       node.classList.toggle('selected', p.id === s.selectedId);
+      node.setAttribute('aria-pressed', String(p.id === s.selectedId));
     }
     for (const [id, node] of nodes) {
       if (!seen.has(id)) {

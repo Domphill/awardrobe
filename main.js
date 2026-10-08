@@ -123,8 +123,9 @@ function noticeInterrupted() {
   const st = state;
   if (!st || !st.app.records.meta('import', null)) return;
   const clear = () => st.app.records.deleteMeta('import').catch(() => {});
-  st.shell.showNotice({ id: 'restore-notice', text: 'A restore did not finish last time, so some things may be missing. Restore the file again with "Add to mine" to bring in the rest.', button: 'Restore again', onClick: () => {
-    clear();
+  st.shell.showNotice({ id: 'restore-notice', text: 'A restore did not finish last time, so some things may be missing. Restore the file again with "Add to mine" to bring in the rest.', button: 'Restore again', onClick: async () => {
+    /* the marker goes before More opens, so the card never shows a stale state */
+    await clear();
     st.router.go('more', 'backup');
   }, onDismiss: clear });
 }

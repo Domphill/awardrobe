@@ -5,6 +5,7 @@
   box-sizing: border-box;
 }
 html {
+  font-family: var(--font);
   -webkit-text-size-adjust: 100%;
   height: 100%;
 }
@@ -14,7 +15,7 @@ body {
   background: var(--paper);
   color: var(--ink);
   font-family: var(--font);
-  font-size: 16px;
+  font-size: 1rem;
   line-height: 1.4;
   font-optical-sizing: auto;
   -webkit-font-smoothing: antialiased;
@@ -101,7 +102,7 @@ button {
 }
 .brand-name {
   font-weight: 700;
-  font-size: 17px;
+  font-size: 1.0625rem;
   letter-spacing: -0.01em;
 }
 .bare .topbar,
@@ -128,7 +129,7 @@ button {
   left: 0;
   right: 0;
   bottom: 0;
-  height: calc(var(--tabbar) + env(safe-area-inset-bottom, 0px));
+  min-height: calc(var(--tabbar) + env(safe-area-inset-bottom, 0px));
   padding: 6px 8px env(safe-area-inset-bottom, 0px);
   display: flex;
   justify-content: space-around;
@@ -138,7 +139,9 @@ button {
   z-index: 20;
 }
 .tab {
-  width: 64px;
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 96px;
   min-height: var(--tap);
   display: flex;
   flex-direction: column;
@@ -148,7 +151,7 @@ button {
   border: 0;
   padding: 4px 0;
   color: var(--graphite);
-  font-size: 11px;
+  font-size: min(0.6875rem, 3vw);
   font-weight: 600;
   border-radius: var(--radius-sm);
 }
@@ -209,7 +212,7 @@ button {
   border-radius: var(--radius-sm);
   background: var(--raise);
   border: 1px solid var(--rule);
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .notice-actions {
   display: flex;
@@ -249,7 +252,7 @@ button {
     flex-direction: row;
     gap: 12px;
     padding: 10px 12px;
-    font-size: 15px;
+    font-size: 0.9375rem;
   }
   .tab-more {
     display: flex;
@@ -273,6 +276,30 @@ button {
     right: 12px;
     width: 360px;
     z-index: 30;
+  }
+}
+/* on an iPhone or iPad only, the root size follows the phone's text size (Dynamic Type), so every
+   rem size scales with it (NFR-20); the same keyword on a Mac would shrink everything to 13 pt,
+   and elsewhere it is ignored, so it is scoped to iOS by a feature only iOS has */
+@supports (-webkit-touch-callout: none) {
+  html {
+    font: -apple-system-body;
+    font-family: var(--font);
+  }
+}
+/* the tab labels grow a little with the text, then at accessibility sizes (175% and up) the icons
+   stand alone on a phone and the labels stay for screen readers (NFR-20, NFR-22) */
+.tab {
+  position: relative;
+}
+@media (max-width: 899px) {
+  html[data-text='xl'] .tab > .tab-label {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
   }
 }
 @media (prefers-reduced-motion: reduce) {

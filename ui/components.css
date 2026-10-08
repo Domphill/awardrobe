@@ -9,18 +9,18 @@
 .title {
   font-variation-settings: 'opsz' 96;
   font-weight: 700;
-  font-size: 34px;
+  font-size: 2.125rem;
   letter-spacing: -0.02em;
   line-height: 1.02;
   text-wrap: balance;
 }
 .title.small {
-  font-size: 28px;
+  font-size: 1.75rem;
 }
 .sub {
   color: var(--graphite);
   margin-top: 4px;
-  font-size: 15px;
+  font-size: 0.9375rem;
 }
 .section-head {
   display: flex;
@@ -29,17 +29,17 @@
   gap: 8px;
 }
 .section-head h2 {
-  font-size: 18px;
+  font-size: 1.125rem;
   font-weight: 600;
   letter-spacing: -0.01em;
 }
 .muted {
   color: var(--graphite);
-  font-size: 14.5px;
+  font-size: 0.90625rem;
 }
 .fineprint {
   color: var(--graphite);
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 .card {
   background: var(--raise);
@@ -61,6 +61,8 @@
 .danger-zone {
   padding-top: 8px;
   display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   justify-content: center;
 }
 .danger-text {
@@ -80,7 +82,7 @@
   background: var(--raise);
   color: var(--ink);
   font-weight: 600;
-  font-size: 15px;
+  font-size: 0.9375rem;
   transition: background-color 0.15s var(--ease), transform 0.1s var(--ease);
 }
 .btn:active {
@@ -97,16 +99,16 @@
 .btn.danger {
   background: var(--danger);
   border-color: var(--danger);
-  color: #fff;
+  color: var(--paper);
 }
 .btn.small {
   min-height: var(--tap);
   padding: 6px 14px;
-  font-size: 13.5px;
+  font-size: 0.84375rem;
 }
 .btn.block {
   width: 100%;
-  font-size: 16px;
+  font-size: 1rem;
 }
 .btn[disabled] {
   opacity: 0.45;
@@ -154,12 +156,12 @@
   gap: 6px;
 }
 .field > .label {
-  font-size: 13.5px;
+  font-size: 0.84375rem;
   font-weight: 600;
   color: var(--graphite);
 }
 .field .hint {
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--graphite);
 }
 .input {
@@ -173,6 +175,7 @@
 }
 .segmented {
   display: inline-flex;
+  flex-wrap: wrap;
   padding: 3px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--rule);
@@ -188,7 +191,7 @@
   background: transparent;
   color: var(--graphite);
   font-weight: 600;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .segmented button[aria-pressed='true'] {
   background: var(--tape);
@@ -208,7 +211,7 @@
   background-size: 14px 14px;
 }
 .empty h2 {
-  font-size: 20px;
+  font-size: 1.25rem;
   font-weight: 600;
 }
 .empty p {
@@ -240,13 +243,13 @@
   font-weight: 600;
 }
 .menu-sub {
-  font-size: 13px;
+  font-size: 0.8125rem;
   color: var(--graphite);
 }
 .error-list {
   display: grid;
   gap: 6px;
-  font-size: 14px;
+  font-size: 0.875rem;
 }
 .error-list li {
   padding: 8px 10px;
@@ -295,7 +298,7 @@
   gap: 8px;
 }
 .sheet-head h2 {
-  font-size: 20px;
+  font-size: 1.25rem;
   font-weight: 600;
 }
 .sheet-actions {
@@ -333,11 +336,12 @@
   border-radius: var(--radius-sm);
   background: var(--ink);
   color: var(--paper);
-  font-size: 14px;
+  font-size: 0.875rem;
   box-shadow: 0 10px 24px var(--shadow);
 }
 .toast .btn {
-  color: var(--tape);
+  color: inherit;
+  text-decoration: underline;
   border-color: transparent;
 }
 .busy-wrap {
@@ -381,7 +385,7 @@
   border: 1px solid var(--rule);
 }
 .page-error h2 {
-  font-size: 20px;
+  font-size: 1.25rem;
 }
 .page-error p {
   color: var(--graphite);
@@ -410,7 +414,7 @@
   background: var(--raise);
   color: var(--ink);
   font-weight: 600;
-  font-size: 14.5px;
+  font-size: 0.90625rem;
   white-space: nowrap;
   flex: none;
 }
@@ -422,7 +426,7 @@
 .chip-count {
   font-weight: 500;
   color: var(--graphite);
-  font-size: 13px;
+  font-size: 0.8125rem;
 }
 .chip[aria-pressed='true'] .chip-count {
   color: inherit;
@@ -498,9 +502,15 @@ textarea.input {
   justify-content: space-between;
   gap: 8px;
 }
+html[data-text] .page-top .title {
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+}
 .page-top .title {
   flex: 1;
-  font-size: 20px;
+  font-size: 1.25rem;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -542,7 +552,7 @@ textarea.input {
   border-radius: var(--radius-sm);
 }
 .card-name {
-  font-size: 14px;
+  font-size: 0.875rem;
   font-weight: 500;
   line-height: 1.25;
   overflow-wrap: anywhere;
@@ -579,7 +589,7 @@ textarea.input {
   border: 1px solid var(--rule);
   background: var(--raise);
   font-weight: 600;
-  font-size: 14.5px;
+  font-size: 0.90625rem;
 }
 .swatch-dot {
   width: 26px;
@@ -609,7 +619,7 @@ textarea.input {
   border: 1px solid var(--rule);
   background: var(--raise);
   color: var(--ink);
-  font-size: 12.5px;
+  font-size: 0.78125rem;
   font-weight: 600;
   min-height: var(--tap);
 }
@@ -620,4 +630,22 @@ textarea.input {
 }
 .icon-btn[aria-pressed='true'] .icon {
   fill: currentColor;
+}
+/* a long label wraps inside its button rather than pushing the page sideways (NFR-20) */
+.btn {
+  max-width: 100%;
+  white-space: normal;
+  text-align: center;
+}
+/* a date field keeps a content-based minimum width in Chrome; at a large text size it takes a full row */
+input[type='date'].input {
+  min-width: 0;
+}
+html[data-text] .form-grid .field:has(input[type='date']) {
+  grid-column: 1 / -1;
+}
+/* placeholder words readable, not the browser's faint grey (NFR-19) */
+::placeholder {
+  color: var(--graphite);
+  opacity: 1;
 }
