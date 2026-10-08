@@ -74,7 +74,8 @@ The budgets the automated tests hold the app to, with the numbers from three run
 | P-3 | Wand tap on T2 | 250 ms (NFR-9) | 16 ms (16, 15, 16) | 13 ms (13, 13, 15) | 14 ms (13, 14, 15) |
 | P-3 | strength change on T2 | 250 ms (NFR-9) | 130 ms (130, 137, 110) | 109 ms (107, 187, 109) | 125 ms (125, 135, 113) |
 | P-3 | "Cut out again" on T2 | 250 ms (NFR-9) | 129 ms (135, 129, 127) | 133 ms (132, 168, 133) | 127 ms (178, 127, 126) |
-| P-7 | page heap with a 12 MP photo open and 20 undo steps (the undo records live in the photo tools) | s 150 MB held and 250 MB peak (NFR-13) | 30 MB held after a collection, 99 MB at the peak before one | 35 MB held after a collection, 99 MB at the peak before one | 145 MB held after a collection, 181 MB at the peak before one |
+| P-7 | page heap with a 12 MP photo open and 20 undo steps (the undo records live in the photo tools) | 150 MB held, 250 MB peak (NFR-13) | 30 MB held after a collection, 99 MB at the peak before one | 35 MB held after a collection, 99 MB at the peak before one | 145 MB held after a collection, 181 MB at the peak before one |
+| P-8 | stored size of a real garment (cut-out, thumbnail and reduced original), average over four real photos | 1.5 MB each (NFR-14) | 221 KB (T1 149 KB, T2 204 KB, T3 384 KB, T5 149 KB) | 221 KB (T1 149 KB, T2 204 KB, T3 384 KB, T5 149 KB) | 221 KB (T1 149 KB, T2 204 KB, T3 384 KB, T5 149 KB) |
 | P-6 | twist and pinch with eight pieces, worst pointer handler time | 8 ms (NFR-12) | 1.30 ms (1.30, 1.30, 1.40) | 1.20 ms (1.30, 1.20, 1.20) | 1.20 ms (1.30, 1.00, 1.20) |
 | P-6 | gap between frames while the fingers moved, 95th percentile | 20 ms, one frame with a little slack (NFR-12) | 7 ms (7, 7, 7), worst 17, 11, 11 ms | 7 ms (7, 7, 7), worst 14, 14, 13 ms | 7 ms (8, 7, 7), worst 11, 10, 14 ms |
 
